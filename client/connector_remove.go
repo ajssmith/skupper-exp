@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/skupperproject/skupper-docker/api/types"
-	"github.com/skupperproject/skupper-docker/pkg/docker"
-	"github.com/skupperproject/skupper-docker/pkg/qdr"
+	"github.com/ajssmith/skupper-exp/api/types"
+	"github.com/ajssmith/skupper-exp/pkg/docker"
+	"github.com/ajssmith/skupper-exp/pkg/qdr"
 )
 
 func (cli *VanClient) ConnectorRemove(name string) error {

@@ -18,8 +18,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/skupperproject/skupper-docker/api/types"
-	"github.com/skupperproject/skupper-docker/pkg/docker/libdocker"
+	"github.com/ajssmith/skupper-exp/api/types"
+	"github.com/ajssmith/skupper-exp/pkg/docker/libdocker"
 )
 
 type RouterNode struct {

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/skupperproject/skupper-docker/api/types"
+	"github.com/ajssmith/skupper-exp/api/types"
 )
 
 func getBridgeName(address string, host string) string {

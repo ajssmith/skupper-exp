@@ -6,7 +6,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/skupperproject/skupper-docker/api/types"
+	"github.com/ajssmith/skupper-exp/api/types"
 )
 
 func NewUUID() string {

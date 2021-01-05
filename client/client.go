@@ -3,7 +3,7 @@ package client
 import (
 	"time"
 
-	"github.com/skupperproject/skupper-docker/pkg/docker/libdocker"
+	"github.com/ajssmith/skupper-exp/pkg/docker/libdocker"
 )
 
 // A VAN client manages orchestration and communication with the network components

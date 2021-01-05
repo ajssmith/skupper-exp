@@ -7,9 +7,9 @@ import (
 	"io/ioutil"
 	"strings"
 
-	"github.com/skupperproject/skupper-docker/api/types"
-	"github.com/skupperproject/skupper-docker/pkg/docker"
-	"github.com/skupperproject/skupper-docker/pkg/utils"
+	"github.com/ajssmith/skupper-exp/api/types"
+	"github.com/ajssmith/skupper-exp/pkg/docker"
+	"github.com/ajssmith/skupper-exp/pkg/utils"
 )
 
 func addTargetToServiceInterface(service *types.ServiceInterface, target *types.ServiceInterfaceTarget) {

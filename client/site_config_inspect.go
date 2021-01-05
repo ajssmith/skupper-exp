@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/skupperproject/skupper-docker/api/types"
+	"github.com/ajssmith/skupper-exp/api/types"
 )
 
 func (cli *VanClient) SiteConfigInspect(name string) (*types.SiteConfig, error) {

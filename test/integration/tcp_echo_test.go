@@ -12,7 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
 
-	"github.com/skupperproject/skupper-docker/pkg/docker/libdocker"
+	"github.com/ajssmith/skupper-exp/pkg/docker/libdocker"
 	"github.com/skupperproject/skupper/test/integration/tcp_echo"
 )
 

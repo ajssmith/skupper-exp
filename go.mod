@@ -26,4 +26,4 @@ require (
 	k8s.io/client-go v0.17.0
 )
 
-module github.com/skupperproject/skupper-docker
+module github.com/ajssmith/skupper-exp

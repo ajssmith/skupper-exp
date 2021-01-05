@@ -16,8 +16,8 @@ import (
 	dockernetworktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/go-connections/nat"
 
-	"github.com/skupperproject/skupper-docker/api/types"
-	"github.com/skupperproject/skupper-docker/pkg/docker/libdocker"
+	"github.com/ajssmith/skupper-exp/api/types"
+	"github.com/ajssmith/skupper-exp/pkg/docker/libdocker"
 	skupperutils "github.com/skupperproject/skupper/pkg/utils"
 )
 

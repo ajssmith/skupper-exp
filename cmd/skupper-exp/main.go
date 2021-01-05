@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/skupperproject/skupper-docker/api/types"
-	"github.com/skupperproject/skupper-docker/client"
+	"github.com/ajssmith/skupper-exp/api/types"
+	"github.com/ajssmith/skupper-exp/client"
 	"github.com/spf13/cobra"
 )
 

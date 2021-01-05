@@ -17,9 +17,9 @@ package qdr
 import (
 	"bytes"
 
+	"github.com/ajssmith/skupper-exp/pkg/docker/libdocker"
 	dockertypes "github.com/docker/docker/api/types"
 	dockerstdcopy "github.com/docker/docker/pkg/stdcopy"
-	"github.com/skupperproject/skupper-docker/pkg/docker/libdocker"
 )
 
 // TODO: rethink where this should be placed in pkg dir

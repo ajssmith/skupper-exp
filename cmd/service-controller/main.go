@@ -11,9 +11,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/skupperproject/skupper-docker/api/types"
-	"github.com/skupperproject/skupper-docker/client"
-	"github.com/skupperproject/skupper-docker/pkg/docker"
+	"github.com/ajssmith/skupper-exp/api/types"
+	"github.com/ajssmith/skupper-exp/client"
+	"github.com/ajssmith/skupper-exp/pkg/docker"
 )
 
 func describe(i interface{}) {

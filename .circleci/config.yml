@@ -43,7 +43,7 @@ jobs:
       #- run: make docker push ## TODO enable this
       - run: make package
       - run: go test -v ./...
-      - run: ./skupper-docker init
+      - run: ./skupper-exp init
       - run: make clean
 
   docker-integration:
@@ -55,9 +55,9 @@ jobs:
           name: Setup tcp-echo container and skupper-docker
           command: |
             make
-            ./skupper-docker init
+            ./skupper-exp init
             docker run -d --name tcp-go-echo-server quay.io/skupper/tcp-go-echo
-            ./skupper-docker expose container tcp-go-echo-server --address tcp-go-echo --port 9090 --target-port 9090
+            ./skupper-exp expose container tcp-go-echo-server --address tcp-go-echo --port 9090 --target-port 9090
       - skupper-debug
       - run:
           name: Run Integration Tests

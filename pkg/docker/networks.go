@@ -5,7 +5,7 @@ import (
 
 	dockertypes "github.com/docker/docker/api/types"
 
-	"github.com/skupperproject/skupper-docker/pkg/docker/libdocker"
+	"github.com/ajssmith/skupper-exp/pkg/docker/libdocker"
 )
 
 func InspectNetwork(name string, dd libdocker.Interface) (dockertypes.NetworkResource, error) {

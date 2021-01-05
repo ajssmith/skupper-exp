@@ -15,11 +15,11 @@ import (
 
 	"github.com/skupperproject/skupper/pkg/certs"
 
-	"github.com/skupperproject/skupper-docker/api/types"
-	"github.com/skupperproject/skupper-docker/pkg/docker"
-	"github.com/skupperproject/skupper-docker/pkg/qdr"
-	"github.com/skupperproject/skupper-docker/pkg/utils"
-	"github.com/skupperproject/skupper-docker/pkg/utils/configs"
+	"github.com/ajssmith/skupper-exp/api/types"
+	"github.com/ajssmith/skupper-exp/pkg/docker"
+	"github.com/ajssmith/skupper-exp/pkg/qdr"
+	"github.com/ajssmith/skupper-exp/pkg/utils"
+	"github.com/ajssmith/skupper-exp/pkg/utils/configs"
 )
 
 func getCertData(name string) (certs.CertificateData, error) {

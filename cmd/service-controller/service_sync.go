@@ -10,7 +10,7 @@ import (
 
 	amqp "github.com/interconnectedcloud/go-amqp"
 
-	"github.com/skupperproject/skupper-docker/api/types"
+	"github.com/ajssmith/skupper-exp/api/types"
 )
 
 type ServiceSyncUpdate struct {
