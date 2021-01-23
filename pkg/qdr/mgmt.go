@@ -19,7 +19,7 @@ import (
 	"fmt"
 
 	"github.com/ajssmith/skupper-exp/api/types"
-	"github.com/ajssmith/skupper-exp/pkg/docker/libdocker"
+	"github.com/ajssmith/skupper-exp/driver"
 )
 
 type RouterNode struct {
@@ -52,7 +52,7 @@ func getQuery(typename string) []string {
 	}
 }
 
-func GetConnectedSites(dd libdocker.Interface) (types.TransportConnectedSites, error) {
+func GetConnectedSites(dd driver.Driver) (types.TransportConnectedSites, error) {
 	result := types.TransportConnectedSites{}
 	nodes, err := GetNodes(dd)
 	if err == nil {
@@ -69,16 +69,23 @@ func GetConnectedSites(dd libdocker.Interface) (types.TransportConnectedSites, e
 	return result, err
 }
 
-func GetNodes(dd libdocker.Interface) ([]RouterNode, error) {
+func GetNodes(dd driver.Driver) ([]RouterNode, error) {
 	command := getQuery("node")
-	execResult, err := routerExec(command, dd)
+	results := []RouterNode{}
+
+	current, err := dd.ContainerInspect("skupper-router")
+	if err != nil {
+		return results, fmt.Errorf("Error retrieving skupper router contairne: %w", err)
+	}
+	execResult, err := dd.ContainerExec(current.ID, command)
+
 	if err != nil {
 		return nil, err
 	} else {
 		results := []RouterNode{}
-		err = json.Unmarshal(execResult.outBuffer.Bytes(), &results)
+		err = json.Unmarshal(execResult.OutBuffer.Bytes(), &results)
 		if err != nil {
-			fmt.Println("Failed to parse JSON: ", err.Error(), execResult.outBuffer.String())
+			fmt.Println("Failed to parse JSON: ", err.Error(), execResult.OutBuffer.String())
 			return nil, err
 		} else {
 			return results, nil
@@ -95,35 +102,25 @@ func GetInterRouterOrEdgeConnection(host string, connections []Connection) *Conn
 	return nil
 }
 
-func GetConnections(dd libdocker.Interface) ([]Connection, error) {
+func GetConnections(dd driver.Driver) ([]Connection, error) {
 	command := getQuery("connection")
-	execResult, err := routerExec(command, dd)
+	results := []Connection{}
+
+	current, err := dd.ContainerInspect("skupper-router")
+	if err != nil {
+		return results, fmt.Errorf("Error retrieving skupper router contairne: %w", err)
+	}
+	execResult, err := dd.ContainerExec(current.ID, command)
 	if err != nil {
 		return nil, err
 	} else {
 		results := []Connection{}
-		err = json.Unmarshal(execResult.outBuffer.Bytes(), &results)
+		err = json.Unmarshal(execResult.OutBuffer.Bytes(), &results)
 		if err != nil {
-			fmt.Println("Failed to parse JSON: ", err.Error(), execResult.outBuffer.String())
+			fmt.Println("Failed to parse JSON: ", err.Error(), execResult.OutBuffer.String())
 			return nil, err
 		} else {
 			return results, nil
 		}
 	}
-}
-
-func routerExec(command []string, dd libdocker.Interface) (ExecResult, error) {
-
-	current, err := dd.InspectContainer("skupper-router")
-	if err != nil {
-		fmt.Println("Error retrieving skupper router container: ", err.Error())
-		return ExecResult{}, err
-	}
-
-	result, err := Exec(dd, current.ID, command)
-	if err != nil {
-		fmt.Println("Error exec into skupper router container: ", err.Error())
-		return ExecResult{}, err
-	}
-	return result, nil
 }

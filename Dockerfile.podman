@@ -1,0 +1,8 @@
+FROM fedora:32 
+
+RUN dnf install -y podman && \
+    rpm -V podman && \
+    dnf clean all -y
+
+
+CMD ["tail -f /dev/nul"]

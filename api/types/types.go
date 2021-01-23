@@ -37,6 +37,7 @@ const (
 	SaslConfigPath
 	ServicesPath
 	SitesPath
+	PluginsPath
 )
 
 var skupperPaths = map[Path]string{
@@ -48,6 +49,7 @@ var skupperPaths = map[Path]string{
 	SaslConfigPath:   "sasl-config",
 	ServicesPath:     "services",
 	SitesPath:        "sites",
+	PluginsPath:      "plugins",
 }
 
 func GetSkupperPath(p Path) string {
@@ -87,9 +89,11 @@ var TransportPrometheusAnnotations = map[string]string{
 const (
 	ControllerDeploymentName string = "skupper-service-controller"
 	ControllerComponentName  string = "controller"
-	DefaultControllerImage   string = "quay.io/ajssmith/skupper-exp-controller"
-	ControllerContainerName  string = "service-controller"
-	ControllerConfigPath     string = "/etc/messaging/"
+	//	DefaultControllerImage   string = "quay.io/ajssmith/skupper-exp-controller"
+	DefaultControllerImage  string = "localhost:5000/skupper-exp-controller"
+	ControllerContainerName string = "service-controller"
+	ControllerConfigPath    string = "/etc/messaging/"
+	ControllerPluginPath    string = "/etc/plugins"
 )
 
 // Skupper qualifiers
@@ -155,7 +159,7 @@ type DeploymentSpec struct {
 	Image        string            `json:"image,omitempty"`
 	LivenessPort int32             `json:"livenessPort,omitempty"`
 	Labels       map[string]string `json:"labels,omitempty"`
-	EnvVar       []string          `json:"envVar,omitempty"`
+	EnvVar       map[string]string `json:"envVar,omitempty"`
 	Ports        nat.PortSet       `json:"ports,omitempty"`
 	Volumes      []string          `json:"volumes,omitempty"`
 	Mounts       map[string]string `json:"mounts,omitempty"`

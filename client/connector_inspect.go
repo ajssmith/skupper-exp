@@ -5,16 +5,19 @@ import (
 	"io/ioutil"
 
 	"github.com/ajssmith/skupper-exp/api/types"
-	"github.com/ajssmith/skupper-exp/pkg/docker"
 	"github.com/ajssmith/skupper-exp/pkg/qdr"
 )
 
 func (cli *VanClient) ConnectorInspect(name string) (*types.ConnectorInspectResponse, error) {
+
+	// TODO: query site config to get patch and ce
+	cli.Init("/usr/lib64/skupper-plugins", "docker")
+
 	vci := &types.ConnectorInspectResponse{}
 	var role types.ConnectorRole
 	var suffix string
 
-	_, err := docker.InspectContainer("skupper-router", cli.DockerInterface)
+	_, err := cli.CeDriver.ContainerInspect("skupper-router")
 	if err != nil {
 		// TODO: is not found versus error
 		return vci, fmt.Errorf("Unable to retrieve transport container (need init?): %w", err)
@@ -48,7 +51,7 @@ func (cli *VanClient) ConnectorInspect(name string) (*types.ConnectorInspectResp
 		Role: string(role),
 	}
 
-	connections, err := qdr.GetConnections(cli.DockerInterface)
+	connections, err := qdr.GetConnections(cli.CeDriver)
 
 	if err == nil {
 		connection := qdr.GetInterRouterOrEdgeConnection(vci.Connector.Host+":"+vci.Connector.Port, connections)

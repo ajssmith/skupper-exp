@@ -3,20 +3,20 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"runtime"
 	"strconv"
 	"strings"
-
-	dockertypes "github.com/docker/docker/api/types"
+	"time"
 
 	"github.com/docker/go-connections/nat"
 
 	"github.com/skupperproject/skupper/pkg/certs"
 
 	"github.com/ajssmith/skupper-exp/api/types"
-	"github.com/ajssmith/skupper-exp/pkg/docker"
+	"github.com/ajssmith/skupper-exp/driver"
 	"github.com/ajssmith/skupper-exp/pkg/qdr"
 	"github.com/ajssmith/skupper-exp/pkg/utils"
 	"github.com/ajssmith/skupper-exp/pkg/utils/configs"
@@ -82,8 +82,9 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	van := &types.RouterSpec{}
 	//TODO: think througn van name, router name, secret names, etc.
 	if options.SkupperName == "" {
-		info, _ := cli.DockerInterface.Info()
-		van.Name = info.Name
+		//		info, _ := cli.CeDriver.Info()
+		//		van.Name = info.Name
+		van.Name = "Woodrow"
 	} else {
 		van.Name = options.SkupperName
 	}
@@ -177,22 +178,40 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	}
 	van.RouterConfig, _ = qdr.MarshalRouterConfig(routerConfig)
 
-	envVars := []string{}
+	envVars := map[string]string{
+		"QDROUTERD_CONF":      "/etc/qpid-dispatch/config/" + types.TransportConfigFile,
+		"QDROUTERD_CONF_TYPE": "json",
+		"SKUPPER_SITE_ID":     siteId,
+	}
 	if !options.IsEdge {
-		envVars = append(envVars, "APPLICATION_NAME="+types.TransportDeploymentName)
+		envVars["APPLICATION_NAME"] = types.TransportDeploymentName
 		// TODO: auto_mesh for non k8s deploy
-		//		envVars = append(envVars, "QDROUTERD_AUTO_MESH_DISCOVERY=QUERY")
+		//		envVars["QDROUTERD_AUTO_MESH_DISCOVERY"] = "QUERY"
 	}
 	if options.AuthMode == string(types.ConsoleAuthModeInternal) {
-		envVars = append(envVars, "QDROUTERD_AUTO_CREATE_SASLDB_SOURCE=/etc/qpid-dispatch/sasl-users/")
-		envVars = append(envVars, "QDROUTERD_AUTO_CREATE_SASLDB_PATH=/tmp/qdrouterd.sasldb")
+		envVars["QDROUTERD_AUTO_CREATE_SASLDB_SOURCE"] = "/etc/qpid-dispatch/sasl-users/"
+		envVars["QDROUTERD_AUTO_CREATE_SASLDB_PATH"] = "/tmp/qdrouterd.sasldb"
 	}
 	if options.TraceLog {
-		envVars = append(envVars, "PN_TRACE_FRM=1")
+		envVars["PN_TRACE_FRM"] = "1"
 	}
-	envVars = append(envVars, "QDROUTERD_CONF=/etc/qpid-dispatch/config/"+types.TransportConfigFile)
-	envVars = append(envVars, "QDROUTERD_CONF_TYPE=json")
-	envVars = append(envVars, "SKUPPER_SITE_ID="+siteId)
+
+	// envVars := []string{}
+	// if !options.IsEdge {
+	// 	envVars = append(envVars, "APPLICATION_NAME="+types.TransportDeploymentName)
+	// 	// TODO: auto_mesh for non k8s deploy
+	// 	//		envVars = append(envVars, "QDROUTERD_AUTO_MESH_DISCOVERY=QUERY")
+	// }
+	// if options.AuthMode == string(types.ConsoleAuthModeInternal) {
+	// 	envVars = append(envVars, "QDROUTERD_AUTO_CREATE_SASLDB_SOURCE=/etc/qpid-dispatch/sasl-users/")
+	// 	envVars = append(envVars, "QDROUTERD_AUTO_CREATE_SASLDB_PATH=/tmp/qdrouterd.sasldb")
+	// }
+	// if options.TraceLog {
+	// 	envVars = append(envVars, "PN_TRACE_FRM=1")
+	// }
+	// envVars = append(envVars, "QDROUTERD_CONF=/etc/qpid-dispatch/config/"+types.TransportConfigFile)
+	// envVars = append(envVars, "QDROUTERD_CONF_TYPE=json")
+	// envVars = append(envVars, "SKUPPER_SITE_ID="+siteId)
 	van.Transport.EnvVar = envVars
 
 	ports := nat.PortSet{}
@@ -282,29 +301,123 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	} else {
 		skupperHost = "host-gateway"
 	}
-	van.Controller.EnvVar = []string{
-		"SKUPPER_SITE_ID=" + siteId,
-		"SKUPPER_TMPDIR=" + os.Getenv("SKUPPER_TMPDIR"),
-		"SKUPPER_PROXY_IMAGE=" + van.Controller.Image,
-		"SKUPPER_HOST=" + skupperHost,
+	van.Controller.EnvVar = map[string]string{
+		"SKUPPER_SITE_ID":     siteId,
+		"SKUPPER_TMPDIR":      os.Getenv("SKUPPER_TMPDIR"),
+		"SKUPPER_PROXY_IMAGE": van.Controller.Image,
+		"SKUPPER_HOST":        skupperHost,
 	}
 	if options.MapToHost {
-		van.Controller.EnvVar = append(van.Controller.EnvVar, "SKUPPER_MAP_TO_HOST=true")
+		van.Controller.EnvVar["SKUPPER_MAP_TO_HOST"] = "true"
 	}
 	if options.TraceLog {
-		van.Controller.EnvVar = append(van.Controller.EnvVar, "PN_TRACE_FRM=1")
+		van.Controller.EnvVar["PN_TRACE_FRM"] = "1"
 	}
+	// van.Controller.EnvVar = []string{
+	// 	"SKUPPER_SITE_ID=" + siteId,
+	// 	"SKUPPER_TMPDIR=" + os.Getenv("SKUPPER_TMPDIR"),
+	// 	"SKUPPER_PROXY_IMAGE=" + van.Controller.Image,
+	// 	"SKUPPER_HOST=" + skupperHost,
+	// }
+	// if options.MapToHost {
+	// 	van.Controller.EnvVar = append(van.Controller.EnvVar, "SKUPPER_MAP_TO_HOST=true")
+	// }
+	// if options.TraceLog {
+	// 	van.Controller.EnvVar = append(van.Controller.EnvVar, "PN_TRACE_FRM=1")
+	// }
+
 	van.Controller.Mounts = map[string]string{
 		types.GetSkupperPath(types.CertsPath) + "/" + "skupper": "/etc/messaging",
 		types.GetSkupperPath(types.ServicesPath):                "/etc/messaging/services",
+		types.GetSkupperPath(types.PluginsPath):                 "/etc/plugins",
 		"/var/run":                                              "/var/run",
 	}
 
 	return van, nil
 }
 
+func getControllerContainerCreateOptions(van *types.RouterSpec) *driver.ContainerCreateOptions {
+	mounts := []driver.MountPoint{}
+	for source, target := range van.Controller.Mounts {
+		mounts = append(mounts, driver.MountPoint{
+			Type:        driver.TypeBind,
+			Source:      source,
+			Destination: target,
+		})
+	}
+
+	cfg := &driver.ContainerCreateOptions{
+		Name: types.ControllerDeploymentName,
+		ContainerConfig: &driver.ContainerBaseConfig{
+			Hostname: types.ControllerDeploymentName,
+			Image:    van.Controller.Image,
+			Cmd:      []string{"/go/src/app/controller"},
+			Env:      van.Controller.EnvVar,
+			HealthCheck: &driver.HealthConfig{
+				Test:        []string{},
+				StartPeriod: (time.Duration(60) * time.Second),
+			},
+			Labels:       van.Controller.Labels,
+			ExposedPorts: van.Controller.Ports,
+		},
+		HostConfig: &driver.ContainerHostConfig{
+			Mounts:     mounts,
+			Privileged: true,
+		},
+		NetworkingConfig: &driver.ContainerNetworkingConfig{
+			EndpointsConfig: map[string]*driver.NetworkEndpointSetting{
+				types.TransportNetworkName: {},
+			},
+		},
+	}
+
+	return cfg
+}
+
+func getTransportContainerCreateOptions(van *types.RouterSpec) *driver.ContainerCreateOptions {
+	mounts := []driver.MountPoint{}
+	for source, target := range van.Transport.Mounts {
+		mounts = append(mounts, driver.MountPoint{
+			Type:        driver.TypeBind,
+			Source:      source,
+			Destination: target,
+		})
+	}
+
+	cfg := &driver.ContainerCreateOptions{
+		Name: types.TransportDeploymentName,
+		ContainerConfig: &driver.ContainerBaseConfig{
+			Hostname: types.TransportDeploymentName,
+			Image:    van.Transport.Image,
+			Env:      van.Transport.EnvVar,
+			HealthCheck: &driver.HealthConfig{
+				Test:        []string{"curl --fail -s http://localhost:9090/healthz || exit 1"},
+				StartPeriod: (time.Duration(60) * time.Second),
+			},
+			Labels:       van.Transport.Labels,
+			ExposedPorts: van.Transport.Ports,
+		},
+		HostConfig: &driver.ContainerHostConfig{
+			Mounts:     mounts,
+			Privileged: true,
+		},
+		NetworkingConfig: &driver.ContainerNetworkingConfig{
+			EndpointsConfig: map[string]*driver.NetworkEndpointSetting{
+				types.TransportNetworkName: {},
+			},
+		},
+	}
+
+	return cfg
+}
+
 // RouterCreate instantiates a VAN Router (transport and controller)
 func (cli *VanClient) RouterCreate(options types.SiteConfigSpec) error {
+	clerr := cli.Init(options.PluginPath, options.ContainerEngineDriver)
+	if clerr != nil {
+		fmt.Println("client error: ", clerr.Error())
+	}
+
 	//TODO return error
 	if options.EnableConsole {
 		if options.AuthMode == string(types.ConsoleAuthModeInternal) || options.AuthMode == "" {
@@ -347,12 +460,13 @@ func (cli *VanClient) RouterCreate(options types.SiteConfigSpec) error {
 		return err
 	}
 
-	err = cli.DockerInterface.PullImage(van.Transport.Image, dockertypes.AuthConfig{}, dockertypes.ImagePullOptions{})
+	fmt.Printf("Router create options ce driver: %+v\n", cli.CeDriver)
+	_, err = cli.CeDriver.ImagesPull(van.Transport.Image, driver.ImagePullOptions{})
 	if err != nil {
 		return err
 	}
 
-	err = cli.DockerInterface.PullImage(van.Controller.Image, dockertypes.AuthConfig{}, dockertypes.ImagePullOptions{})
+	_, err = cli.CeDriver.ImagesPull(van.Controller.Image, driver.ImagePullOptions{})
 	if err != nil {
 		return err
 	}
@@ -372,7 +486,32 @@ func (cli *VanClient) RouterCreate(options types.SiteConfigSpec) error {
 	if err := os.Mkdir(types.GetSkupperPath(types.ServicesPath), 0755); err != nil {
 		return err
 	}
-	// create skupper-services file
+
+	if err := os.Mkdir(types.GetSkupperPath(types.PluginsPath), 0755); err != nil {
+		return err
+	}
+
+	// copy plugin for controller
+	src := fmt.Sprintf("%s/%s.so", options.PluginPath, options.ContainerEngineDriver)
+	dest := fmt.Sprintf("%s/plugin.so", types.GetSkupperPath(types.PluginsPath))
+
+	source, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer source.Close()
+
+	destination, err := os.Create(dest)
+	if err != nil {
+		return err
+	}
+	defer destination.Close()
+
+	_, err = io.Copy(destination, source)
+	if err != nil {
+		return err
+	}
+
 	svcDefs := make(map[string]types.ServiceInterface)
 	encoded, err := json.Marshal(svcDefs)
 	if err != nil {
@@ -384,7 +523,6 @@ func (cli *VanClient) RouterCreate(options types.SiteConfigSpec) error {
 	}
 
 	// write qdrouterd configs
-
 	err = ioutil.WriteFile(types.GetSkupperPath(types.ConfigPath)+"/qdrouterd.json", []byte(van.RouterConfig), 0755)
 	if err != nil {
 		return err
@@ -406,13 +544,13 @@ sasldb_path: /tmp/qdrouterd.sasldb
 	}
 
 	// create user network
-	_, err = docker.NewTransportNetwork(types.TransportNetworkName, cli.DockerInterface)
+	_, err = cli.CeDriver.NetworkCreate(types.TransportNetworkName, driver.NetworkCreateOptions{})
 	if err != nil {
 		return err
 	}
 
-	// fire up the containers
-	transport, err := docker.NewTransportContainer(van, cli.DockerInterface)
+	transportOpts := getTransportContainerCreateOptions(van)
+	transportResp, err := cli.CeDriver.ContainerCreate(*transportOpts)
 	if err != nil {
 		return err
 	}
@@ -425,18 +563,19 @@ sasldb_path: /tmp/qdrouterd.sasldb
 		generateCredentials(cred.CA, cred.Name, cred.Subject, cred.Hosts, cred.ConnectJson)
 	}
 
-	//TODO : generate certs first?
-	err = docker.StartContainer(transport.Name, cli.DockerInterface)
+	// //TODO : generate certs first?
+	err = cli.CeDriver.ContainerStart(transportResp.ID)
 	if err != nil {
 		return fmt.Errorf("Could not start transport container: %w", err)
 	}
 
-	controller, err := docker.NewControllerContainer(van, cli.DockerInterface)
+	controllerOpts := getControllerContainerCreateOptions(van)
+	controllerResp, err := cli.CeDriver.ContainerCreate(*controllerOpts)
 	if err != nil {
 		return err
 	}
 
-	err = docker.StartContainer(controller.Name, cli.DockerInterface)
+	err = cli.CeDriver.ContainerStart(controllerResp.ID)
 	if err != nil {
 		return fmt.Errorf("Could not start controller container: %w", err)
 	}

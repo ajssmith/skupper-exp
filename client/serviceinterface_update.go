@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/ajssmith/skupper-exp/api/types"
-	"github.com/ajssmith/skupper-exp/pkg/docker"
 	"github.com/ajssmith/skupper-exp/pkg/utils"
 )
 
@@ -32,19 +31,19 @@ func addTargetToServiceInterface(service *types.ServiceInterface, target *types.
 func getServiceInterfaceTarget(targetType string, targetName string, deducePort bool, cli *VanClient) (*types.ServiceInterfaceTarget, error) {
 	// note: selector will indicate targetType
 	if targetType == "container" {
-		containerJSON, err := docker.InspectContainer(targetName, cli.DockerInterface)
+		_, err := cli.CeDriver.ContainerInspect(targetName)
 		if err == nil {
 			target := types.ServiceInterfaceTarget{
 				Name:     targetName,
 				Selector: "internal.skupper.io/container",
 			}
-			if deducePort {
-				if len(containerJSON.Config.ExposedPorts) > 0 {
-					//TODO get port from config
-					// a map of nat port sets, how to choose a port?
-					target.TargetPort = 9090
-				}
-			}
+			//			if deducePort {
+			//				if len(containerJSON.Config.ExposedPorts) > 0 {
+			//					//TODO get port from config
+			//					// a map of nat port sets, how to choose a port?
+			//					target.TargetPort = 9090
+			//				}
+			//			}
 			return &target, nil
 		} else {
 			return nil, fmt.Errorf("Could not read container %s: %s", targetName, err)
@@ -129,7 +128,10 @@ func validateServiceInterface(service *types.ServiceInterface) error {
 }
 
 func (cli *VanClient) ServiceInterfaceUpdate(ctx context.Context, service *types.ServiceInterface) error {
-	_, err := docker.InspectContainer("skupper-router", cli.DockerInterface)
+	// TODO: query site config to get patch and ce
+	cli.Init("/usr/lib64/skupper-plugins", "docker")
+
+	_, err := cli.CeDriver.ContainerInspect("skupper-router")
 	if err != nil {
 		return fmt.Errorf("Failed to retrieve transport container (need init?): %w", err)
 	}
@@ -147,7 +149,10 @@ func (cli *VanClient) ServiceInterfaceUpdate(ctx context.Context, service *types
 }
 
 func (cli *VanClient) ServiceInterfaceBind(service *types.ServiceInterface, targetType string, targetName string, protocol string, targetPort int) error {
-	_, err := docker.InspectContainer("skupper-router", cli.DockerInterface)
+	// TODO: query site config to get patch and ce
+	cli.Init("/usr/lib64/skupper-plugins", "docker")
+
+	_, err := cli.CeDriver.ContainerInspect("skupper-router")
 	if err != nil {
 		return fmt.Errorf("Failed to retrieve transport container (need init?): %w", err)
 	}
@@ -185,9 +190,12 @@ func (cli *VanClient) ServiceInterfaceBind(service *types.ServiceInterface, targ
 }
 
 func removeServiceInterfaceTarget(serviceName string, targetName string, deleteIfNoTargets bool, cli *VanClient) error {
+	// TODO: query site config to get patch and ce
+	cli.Init("/usr/lib64/skupper-plugins", "docker")
+
 	current := make(map[string]types.ServiceInterface)
 
-	_, err := docker.InspectContainer("skupper-router", cli.DockerInterface)
+	_, err := cli.CeDriver.ContainerInspect("skupper-router")
 	if err != nil {
 		return fmt.Errorf("Failed to retrieve transport container (need init?): %w", err)
 	}
@@ -253,7 +261,10 @@ func removeServiceInterfaceTarget(serviceName string, targetName string, deleteI
 }
 
 func (cli *VanClient) ServiceInterfaceUnbind(targetType string, targetName string, address string, deleteIfNoTargets bool) error {
-	_, err := docker.InspectContainer("skupper-router", cli.DockerInterface)
+	// TODO: query site config to get patch and ce
+	cli.Init("/usr/lib64/skupper-plugins", "docker")
+
+	_, err := cli.CeDriver.ContainerInspect("skupper-router")
 	if err != nil {
 		return fmt.Errorf("Failed to retrieve transport container (need init?): %w", err)
 	}

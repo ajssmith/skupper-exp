@@ -5,13 +5,15 @@ import (
 	"os"
 
 	"github.com/ajssmith/skupper-exp/api/types"
-	"github.com/ajssmith/skupper-exp/pkg/docker"
+	"github.com/ajssmith/skupper-exp/driver"
 	"github.com/ajssmith/skupper-exp/pkg/qdr"
 )
 
 func (cli *VanClient) ConnectorRemove(name string) error {
+	// TODO: query site config to get patch and ce
+	cli.Init("/usr/lib64/skupper-plugins", "docker")
 
-	_, err := docker.InspectContainer("skupper-router", cli.DockerInterface)
+	_, err := cli.CeDriver.ContainerInspect("skupper-router")
 	if err != nil {
 		return fmt.Errorf("Failed to retrieve transport container: %w", err)
 	}
@@ -36,23 +38,25 @@ func (cli *VanClient) ConnectorRemove(name string) error {
 		}
 	}
 
-	err = docker.RestartTransportContainer(cli.DockerInterface)
+	err = driver.RecreateContainer("skupper-router", cli.CeDriver)
 	if err != nil {
-		return fmt.Errorf("Failed to restart transport container: %w", err)
+		return fmt.Errorf("Failed to re-start transport container: %w", err)
 	}
 
-	err = docker.RestartContainer(types.ControllerDeploymentName, cli.DockerInterface)
+	err = driver.RecreateContainer("skupper-service-controller", cli.CeDriver)
 	if err != nil {
-		return fmt.Errorf("Failed to restart controller container: %w", err)
+		return fmt.Errorf("Failed to re-start service controller container: %w", err)
 	}
 
+	// TODO: Note this is where cli Init might happen twice, is that ok?
 	// restart proxies
 	vsis, err := cli.ServiceInterfaceList()
 	if err != nil {
 		return fmt.Errorf("Failed to list proxies to restart: %w", err)
 	}
 	for _, vs := range vsis {
-		err = docker.RestartContainer(vs.Address, cli.DockerInterface)
+		fmt.Println("Need to restart: ", vs.Address)
+		err = cli.CeDriver.ContainerRestart(vs.Address)
 		if err != nil {
 			return fmt.Errorf("Failed to restart proxy container: %w", err)
 		}

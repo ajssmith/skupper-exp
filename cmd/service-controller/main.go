@@ -9,11 +9,9 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/ajssmith/skupper-exp/api/types"
 	"github.com/ajssmith/skupper-exp/client"
-	"github.com/ajssmith/skupper-exp/pkg/docker"
 )
 
 func describe(i interface{}) {
@@ -69,19 +67,30 @@ func getTlsConfig(verify bool, cert, key, ca string) (*tls.Config, error) {
 }
 
 func main() {
-	siteId := os.Getenv("SKUPPER_SITE_ID")
+	var cePlugin string
 
-	// set up signals so we handle the first shutdown signal gracefully
+	siteId := os.Getenv("SKUPPER_SITE_ID")
+	if os.Getenv("SKUPPER_CE_PLUGIN") != "" {
+		cePlugin = os.Getenv("SKUPPER_CE_PLUGIN")
+	} else {
+		cePlugin = "podman"
+	}
+
 	stopCh := SetupSignalHandler()
 
 	cli, err := client.NewClient()
 	if err != nil {
-		log.Fatal("Error getting van client", err.Error())
+		log.Fatal("Error getting new van client", err.Error())
+	}
+
+	err = cli.Init(".", cePlugin)
+	if err != nil {
+		log.Fatal("Error van client init", err.Error())
 	}
 
 	tlsConfig, err := getTlsConfig(true, types.ControllerConfigPath+"tls.crt", types.ControllerConfigPath+"tls.key", types.ControllerConfigPath+"ca.crt")
 	if err != nil {
-		log.Fatal("Error getting van client: ", err.Error())
+		log.Fatal("Error getting tls config: ", err.Error())
 	}
 
 	controller, err := NewController(cli, siteId, tlsConfig)
@@ -89,11 +98,11 @@ func main() {
 		log.Fatal("Error getting new controller: ", err.Error())
 	}
 
-	log.Println("Waiting for the Skupper router component to start")
-	_, err = docker.WaitForContainerStatus("skupper-router", "running", time.Second*180, time.Second*5, cli.DockerInterface)
-	if err != nil {
-		log.Fatal("Failed waiting for router to be running", err.Error())
-	}
+	//	log.Println("Waiting for the Skupper router component to start")
+	//	_, err = docker.WaitForContainerStatus("skupper-router", "running", time.Second*180, time.Second*5, cli.DockerInterface)
+	//	if err != nil {
+	//		log.Fatal("Failed waiting for router to be running", err.Error())
+	//	}
 
 	// start the controller workers
 	if err = controller.Run(stopCh); err != nil {

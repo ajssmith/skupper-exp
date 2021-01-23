@@ -263,13 +263,17 @@ func getControllerContainerCreateConfig(van *types.RouterSpec) *dockertypes.Cont
 		})
 	}
 
+	envVars := []string{}
+	for key, value := range van.Controller.EnvVar {
+		envVars = append(envVars, key+"="+value)
+	}
 	opts := &dockertypes.ContainerCreateConfig{
 		Name: types.ControllerDeploymentName,
 		Config: &dockercontainer.Config{
 			Hostname: types.ControllerDeploymentName,
 			Image:    van.Controller.Image,
 			Cmd:      []string{"/app/controller"},
-			Env:      van.Controller.EnvVar,
+			Env:      envVars,
 			Labels:   van.Controller.Labels,
 		},
 		HostConfig: &dockercontainer.HostConfig{
@@ -376,12 +380,17 @@ func getTransportContainerCreateConfig(van *types.RouterSpec) *dockertypes.Conta
 		})
 	}
 
+	envVars := []string{}
+	for key, value := range van.Transport.EnvVar {
+		envVars = append(envVars, key+"="+value)
+	}
+
 	opts := &dockertypes.ContainerCreateConfig{
 		Name: types.TransportDeploymentName,
 		Config: &dockercontainer.Config{
 			Hostname: types.TransportDeploymentName,
 			Image:    van.Transport.Image,
-			Env:      van.Transport.EnvVar,
+			Env:      envVars,
 			Healthcheck: &dockercontainer.HealthConfig{
 				Test:        []string{"curl --fail -s http://localhost:9090/healthz || exit 1"},
 				StartPeriod: (time.Duration(60) * time.Second),

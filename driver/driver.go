@@ -2,7 +2,10 @@ package driver
 
 import (
 	"bytes"
+	"fmt"
 	"time"
+
+	"github.com/docker/go-connections/nat"
 )
 
 const (
@@ -25,11 +28,12 @@ type Driver interface {
 	ImageInspect(id string) (*ImageInspect, error)
 	ImagesList(options ImageListOptions) ([]ImageSummary, error)
 	ImagesPull(refStr string, options ImagePullOptions) ([]string, error)
-	ContainerCreate(image string) (ContainerCreateResponse, error)
+	ContainerCreate(options ContainerCreateOptions) (ContainerCreateResponse, error)
 	ContainerStart(id string) error
 	ContainerWait(id string, state string, timeout time.Duration, interval time.Duration) error
 	ContainerList(options ContainerListOptions) ([]Container, error)
 	ContainerInspect(id string) (*InspectContainerData, error)
+	ContainerRestart(id string) error
 	ContainerStop(id string) error
 	ContainerRemove(id string) error
 	ContainerExec(id string, cmd []string) (ExecResult, error)
@@ -38,6 +42,69 @@ type Driver interface {
 	NetworkRemove(id string) error
 	NetworkConnect(id string, container string, aliases []string) error
 	NetworkDisconnect(id string, container string, force bool) error
+}
+
+func RecreateContainer(name string, dd Driver) error {
+	current, err := dd.ContainerInspect(name)
+	if err != nil {
+		return err
+	}
+
+	mounts := []MountPoint{}
+	for _, v := range current.Mounts {
+		mounts = append(mounts, MountPoint{
+			Type:        v.Type,
+			Source:      v.Source,
+			Destination: v.Destination,
+		})
+	}
+
+	hostCfg := &ContainerHostConfig{
+		Mounts:     mounts,
+		Privileged: true,
+	}
+
+	containerCfg := &ContainerBaseConfig{
+		Hostname:     current.Config.Hostname,
+		ExposedPorts: current.Config.ExposedPorts,
+		Env:          current.Config.Env,
+		HealthCheck:  current.Config.Healthcheck,
+		Image:        current.Config.Image,
+		Labels:       current.Config.Labels,
+	}
+
+	networkCfg := &ContainerNetworkingConfig{
+		EndpointsConfig: current.NetworkSettings.Networks,
+	}
+
+	// remote current and create new container
+	err = dd.ContainerStop(name)
+	if err != nil {
+		return fmt.Errorf("Failed to stop container: %w", err)
+	}
+
+	err = dd.ContainerRemove(name)
+	if err != nil {
+		return fmt.Errorf("Failed to remove container: %w", err)
+	}
+
+	opts := ContainerCreateOptions{
+		Name:             name,
+		ContainerConfig:  containerCfg,
+		HostConfig:       hostCfg,
+		NetworkingConfig: networkCfg,
+	}
+
+	resp, err := dd.ContainerCreate(opts)
+	if err != nil {
+		return fmt.Errorf("Failed to re-create container %w", err)
+	}
+
+	err = dd.ContainerStart(resp.ID)
+	if err != nil {
+		return fmt.Errorf("Failed to re-start container %w", err)
+	}
+	return nil
 }
 
 // TODO: add Config
@@ -49,19 +116,23 @@ type ImageInspect struct {
 }
 
 type ImagePullOptions struct {
-	All bool
+	Filters map[string][]string
+	All     bool
 }
 
 type ImageListOptions struct {
-	All bool
+	Filters map[string][]string
+	All     bool
 }
 
 type ContainerListOptions struct {
-	All bool
+	Filters map[string][]string
+	All     bool
 }
 
 type NetworkListOptions struct {
-	All bool
+	Filters map[string][]string
+	All     bool
 }
 
 // TODO: podman Image has container config, where should this come from
@@ -72,6 +143,42 @@ type ImageSummary struct {
 	RepoTags    []string          `json:",omitempty"`
 	RepoDigests []string          `json:",omitempty"`
 	Size        int64             `json:"Size"`
+}
+
+type HealthConfig struct {
+	Test        []string
+	Interval    time.Duration
+	Timeout     time.Duration
+	StartPeriod time.Duration
+	Retries     int
+}
+
+type ContainerBaseConfig struct {
+	Hostname     string
+	Image        string
+	Env          map[string]string
+	Cmd          []string
+	HealthCheck  *HealthConfig
+	Labels       map[string]string
+	ExposedPorts nat.PortSet
+}
+
+type ContainerHostConfig struct {
+	NetworkMode  string
+	PortBindings nat.PortMap
+	Mounts       []MountPoint
+	Privileged   bool
+}
+
+type ContainerNetworkingConfig struct {
+	EndpointsConfig map[string]*NetworkEndpointSetting
+}
+
+type ContainerCreateOptions struct {
+	Name             string
+	ContainerConfig  *ContainerBaseConfig
+	HostConfig       *ContainerHostConfig
+	NetworkingConfig *ContainerNetworkingConfig
 }
 
 type ContainerCreateResponse struct {
@@ -93,25 +200,59 @@ type Container struct {
 	Mounts  []MountPoint
 }
 
+// corresponds to containers on a network
+type EndpointResource struct {
+	Name       string
+	EndpointID string
+}
 type NetworkResource struct {
-	Name string
+	Name       string
+	NetworkID  string
+	Containers map[string]EndpointResource
+}
+
+type NetworkEndpointSetting struct {
+	Links       []string
+	Aliases     []string
+	NetworkID   string
+	EndpointID  string
+	Gateway     string
+	IPAddress   string
+	IPPrefixLen int
+}
+
+type ContainerNetworkConfig struct {
+	Gateway              string   `json:"Gateway"`
+	IPAddress            string   `json:"IPAddress"`
+	IPPrefixLen          int      `json:"IPPrefixLen"`
+	SecondaryIPAddresses []string `json:"SecondaryIPAddresses,omitempty"`
+	Networks             map[string]*NetworkEndpointSetting
+}
+
+type ContainerConfig struct {
+	Hostname     string
+	ExposedPorts nat.PortSet
+	Env          map[string]string
+	Healthcheck  *HealthConfig
+	Image        string
+	Labels       map[string]string
 }
 
 // NOTE: ContainerJSONBase    for docker
 //       InspectContainerData for podman
 type InspectContainerData struct {
 	// Base
-	ID        string          `json:"Id"`
-	Created   time.Time       `json:"Created"`
-	Path      string          `json:"Path"`
-	Args      []string        `json:"Args"`
-	State     *ContainerState `json:"State"`
-	Image     string          `json:"Image"`
-	ImageName string          `json:"ImageName"`
-	Name      string          `json:"Name"`
-	Mounts    []MountPoint
-	// Config
-	// NetworkSettings
+	ID              string          `json:"Id"`
+	Created         time.Time       `json:"Created"`
+	Path            string          `json:"Path"`
+	Args            []string        `json:"Args"`
+	State           *ContainerState `json:"State"`
+	Image           string          `json:"Image"`
+	ImageName       string          `json:"ImageName"`
+	Name            string          `json:"Name"`
+	Mounts          []MountPoint
+	Config          ContainerConfig        `json:"Config"`
+	NetworkSettings ContainerNetworkConfig `json:"NetworkSettings`
 }
 
 type MountPoint struct {

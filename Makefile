@@ -1,7 +1,8 @@
 VERSION := $(shell git describe --tags --dirty=-modified --always)
-IMAGE := quay.io/ajssmith/skupper-exp-controller
+PUBLIC_IMAGE := quay.io/ajssmith/skupper-exp-controller
+LOCAL_IMAGE := localhost:5000/skupper-exp-controller
 
-all: build-cmd build-controller
+all: build-cmd build-controller build-plugins
 
 build-cmd:
 	go build -ldflags="-X main.version=${VERSION}"  -o skupper-exp cmd/skupper-exp/main.go
@@ -9,11 +10,24 @@ build-cmd:
 build-controller:
 	go build -ldflags="-X main.version=${VERSION}"  -o controller cmd/service-controller/main.go cmd/service-controller/controller.go cmd/service-controller/service_sync.go cmd/service-controller/bridges.go
 
+build-plugins:
+	go build -ldflags="-X main.version=${VERSION}" --buildmode=plugin -o docker.so plug-ins/docker/docker.go
+	go build -ldflags="-X main.version=${VERSION}" --buildmode=plugin -o podman.so plug-ins/podman/podman.go
+
 docker-build:
-	docker build -t ${IMAGE} .
+	docker build -t ${PUBLIC_IMAGE} .
+
+docker-build-f32:
+	docker build -t ${PUBLIC_IMAGE} -f Dockerfile.fedora .
 
 docker-push:
-	docker push ${IMAGE}
+	docker push ${PUBLIC_IMAGE}
+
+podman-build-f32:
+	podman build -t ${LOCAL_IMAGE} -f Dockerfile.fedora .
+
+podman-push:
+	podman push ${LOCAL_IMAGE}
 
 format:
 	go fmt ./...

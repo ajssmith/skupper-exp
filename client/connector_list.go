@@ -5,14 +5,16 @@ import (
 	"io/ioutil"
 
 	"github.com/ajssmith/skupper-exp/api/types"
-	"github.com/ajssmith/skupper-exp/pkg/docker"
 	"github.com/ajssmith/skupper-exp/pkg/qdr"
 )
 
 func (cli *VanClient) ConnectorList() ([]*types.Connector, error) {
+	// TODO: query site config to get patch and ce
+	cli.Init("/usr/lib64/skupper-plugins", "docker")
+
 	var connectors []*types.Connector
 	// verify that the transport is interior mode
-	_, err := docker.InspectContainer("skupper-router", cli.DockerInterface)
+	_, err := cli.CeDriver.ContainerInspect("skupper-router")
 	if err != nil {
 		return connectors, fmt.Errorf("Unable to retrieve transport container (need init?): %w", err)
 	}

@@ -8,7 +8,7 @@ import (
 	"strconv"
 
 	"github.com/ajssmith/skupper-exp/api/types"
-	"github.com/ajssmith/skupper-exp/pkg/docker"
+	"github.com/ajssmith/skupper-exp/driver"
 	"github.com/ajssmith/skupper-exp/pkg/qdr"
 	"github.com/skupperproject/skupper/pkg/certs"
 )
@@ -35,13 +35,16 @@ func generateConnectorName(path string) (string, error) {
 
 func (cli *VanClient) ConnectorCreate(secretFile string, options types.ConnectorCreateOptions) (string, error) {
 
+	// TODO: query site config to get patch and ce
+	cli.Init("/usr/lib64/skupper-plugins", "docker")
+
 	// TODO certs should return err
 	secret, err := certs.GetSecretContent(secretFile)
 	if err != nil {
 		return "", fmt.Errorf("Failed to make connector: %w", err)
 	}
 
-	_, err = docker.InspectContainer("skupper-router", cli.DockerInterface)
+	_, err = cli.CeDriver.ContainerInspect("skupper-router")
 	if err != nil {
 		return "", fmt.Errorf("Failed to retrieve transport container (need init?): %w", err)
 	}
@@ -116,15 +119,14 @@ func (cli *VanClient) ConnectorCreate(secretFile string, options types.Connector
 		return "", fmt.Errorf("Failed to update router config file: %w", err)
 	}
 
-	err = docker.RestartTransportContainer(cli.DockerInterface)
+	err = driver.RecreateContainer("skupper-router", cli.CeDriver)
 	if err != nil {
 		return "", fmt.Errorf("Failed to re-start transport container: %w", err)
 	}
 
-	//	err = docker.RestartControllerContainer(cli.DockerInterface)
-	err = docker.RestartContainer(types.ControllerDeploymentName, cli.DockerInterface)
+	err = driver.RecreateContainer("skupper-service-controller", cli.CeDriver)
 	if err != nil {
-		return "", fmt.Errorf("Failed to re-start controller container: %w", err)
+		return "", fmt.Errorf("Failed to re-start service controller container: %w", err)
 	}
 
 	// restart proxies
@@ -133,7 +135,8 @@ func (cli *VanClient) ConnectorCreate(secretFile string, options types.Connector
 		return "", fmt.Errorf("Failed to list proxies to restart: %w", err)
 	}
 	for _, vs := range vsis {
-		err = docker.RestartContainer(vs.Address, cli.DockerInterface)
+		fmt.Println("Need to restart container", vs.Address)
+		err = cli.CeDriver.ContainerRestart(vs.Address)
 		if err != nil {
 			return "", fmt.Errorf("Failed to restart proxy container: %w", err)
 		}

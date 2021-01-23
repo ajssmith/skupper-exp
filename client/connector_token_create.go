@@ -4,14 +4,16 @@ import (
 	"fmt"
 
 	"github.com/ajssmith/skupper-exp/api/types"
-	"github.com/ajssmith/skupper-exp/pkg/docker"
 	"github.com/ajssmith/skupper-exp/pkg/qdr"
 	"github.com/skupperproject/skupper/pkg/certs"
 )
 
 func (cli *VanClient) ConnectorTokenCreate(subject string, secretFile string) error {
+	// TODO: query site config to get patch and ce
+	cli.Init("/usr/lib64/skupper-plugins", "docker")
+
 	// verify that the transport is interior mode
-	router, err := docker.InspectContainer("skupper-router", cli.DockerInterface)
+	router, err := cli.CeDriver.ContainerInspect("skupper-router")
 	if err != nil {
 		return fmt.Errorf("Unable to retrieve transport container (need init?): %w", err)
 	}
@@ -30,7 +32,9 @@ func (cli *VanClient) ConnectorTokenCreate(subject string, secretFile string) er
 		return fmt.Errorf("Unable to retrieve CA data: %w", err)
 	}
 
-	ipAddr := string(router.NetworkSettings.Networks["skupper-network"].IPAddress)
+	// TODO add to driver
+	ipAddr := router.NetworkSettings.IPAddress
+	//ipAddr := string(router.NetworkSettings.Networks["skupper-network"].IPAddress)
 	annotations := make(map[string]string)
 	annotations["inter-router-port"] = "55671"
 	annotations["inter-router-host"] = ipAddr

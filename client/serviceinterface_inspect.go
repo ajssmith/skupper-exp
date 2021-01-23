@@ -6,13 +6,15 @@ import (
 	"io/ioutil"
 
 	"github.com/ajssmith/skupper-exp/api/types"
-	"github.com/ajssmith/skupper-exp/pkg/docker"
 )
 
 func (cli *VanClient) ServiceInterfaceInspect(address string) (*types.ServiceInterface, error) {
+	// TODO: query site config to get patch and ce
+	cli.Init("/usr/lib64/skupper-plugins", "docker")
+
 	svcDefs := make(map[string]types.ServiceInterface)
 
-	_, err := docker.InspectContainer("skupper-router", cli.DockerInterface)
+	_, err := cli.CeDriver.ContainerInspect("skupper-router")
 	if err != nil {
 		return nil, fmt.Errorf("Failed to retrieve transport container (need init?): %w", err)
 	}

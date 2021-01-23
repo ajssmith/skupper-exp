@@ -12,13 +12,10 @@ import (
 
 	amqp "github.com/interconnectedcloud/go-amqp"
 
-	dockertypes "github.com/docker/docker/api/types"
-	dockerfilters "github.com/docker/docker/api/types/filters"
-
 	"github.com/ajssmith/skupper-exp/api/types"
 	"github.com/ajssmith/skupper-exp/client"
+	"github.com/ajssmith/skupper-exp/driver"
 	"github.com/ajssmith/skupper-exp/pkg/docker"
-	"github.com/ajssmith/skupper-exp/pkg/qdr"
 	"github.com/fsnotify/fsnotify"
 )
 
@@ -76,8 +73,8 @@ func (c *Controller) Run(stopCh <-chan struct{}) error {
 		imageName = types.DefaultTransportImage
 	}
 
-	log.Println("Pulling proxy image")
-	err := c.vanClient.DockerInterface.PullImage(imageName, dockertypes.AuthConfig{}, dockertypes.ImagePullOptions{})
+	log.Println("Pulling proxy image", c.vanClient.CeDriver)
+	_, err := c.vanClient.CeDriver.ImagesPull(imageName, driver.ImagePullOptions{})
 	if err != nil {
 		log.Fatal("Failed to pull proxy image: ", err.Error())
 	}
@@ -148,20 +145,20 @@ func (c *Controller) ensureProxyFor(bindings *ServiceBindings) error {
 	serviceInterface := asServiceInterface(bindings)
 
 	if bindings.origin == "" {
-		attached := make(map[string]dockertypes.EndpointResource)
-		sn, err := docker.InspectNetwork(types.TransportNetworkName, c.vanClient.DockerInterface)
+		attached := make(map[string]bool)
+		sn, err := c.vanClient.CeDriver.NetworkInspect(types.TransportNetworkName)
 		if err != nil {
 			return fmt.Errorf("Unable to retrieve skupper-network: %w", err)
 		}
 		for _, c := range sn.Containers {
-			attached[c.Name] = c
+			attached[c.Name] = true
 		}
 
 		for _, t := range bindings.targets {
 			if t.selector == "internal.skupper.io/container" {
 				if _, ok := attached[t.name]; !ok {
 					fmt.Println("Attaching container to skupper network: ", t.service)
-					err := docker.ConnectContainerToNetwork(types.TransportNetworkName, t.name, c.vanClient.DockerInterface)
+					err := c.vanClient.CeDriver.NetworkConnect(types.TransportNetworkName, t.name, []string{})
 					if err != nil {
 						log.Println("Failed to attach target container to skupper network: ", err.Error())
 					}
@@ -170,54 +167,56 @@ func (c *Controller) ensureProxyFor(bindings *ServiceBindings) error {
 		}
 	}
 
-	config, _ := qdr.GetRouterConfigForProxy(serviceInterface, c.origin)
-	mapToHost := false
-	if os.Getenv("SKUPPER_MAP_TO_HOST") != "" {
-		mapToHost = true
-	}
+	// config, _ := qdr.GetRouterConfigForProxy(serviceInterface, c.origin)
+	// mapToHost := false
+	// if os.Getenv("SKUPPER_MAP_TO_HOST") != "" {
+	// 	mapToHost = true
+	// }
 
 	if !exists {
 		log.Println("Deploying proxy: ", serviceInterface.Address)
-		proxyContainer, err := docker.NewProxyContainer(serviceInterface, config, mapToHost, c.vanClient.DockerInterface)
-		if err != nil {
-			return fmt.Errorf("Failed to create proxy container: %w", err)
-		}
-		err = docker.StartContainer(proxyContainer.Name, c.vanClient.DockerInterface)
-		if err != nil {
-			return fmt.Errorf("Failed to start proxy container: %w", err)
-		}
+		// proxyContainer, err := docker.NewProxyContainer(serviceInterface, config, mapToHost, c.vanClient.DockerInterface)
+		// if err != nil {
+		// 	return fmt.Errorf("Failed to create proxy container: %w", err)
+		// }
+		// err = docker.StartContainer(proxyContainer.Name, c.vanClient.DockerInterface)
+		// if err != nil {
+		// 	return fmt.Errorf("Failed to start proxy container: %w", err)
+		// }
 	} else {
-		proxyContainer, err := docker.InspectContainer(serviceInterface.Address, c.vanClient.DockerInterface)
-		if err != nil {
-			return fmt.Errorf("Failed to retrieve current proxy container: %w", err)
-		}
-		actualConfig := docker.FindEnvVar(proxyContainer.Config.Env, "QDROUTERD_CONF")
-		if actualConfig == "" || actualConfig != config {
-			log.Println("Updating proxy config for: ", serviceInterface.Address)
-			err := c.deleteProxy(serviceInterface.Address)
-			if err != nil {
-				return fmt.Errorf("Failed to delete proxy container: %w", err)
-			}
-			newProxyContainer, err := docker.NewProxyContainer(serviceInterface, config, mapToHost, c.vanClient.DockerInterface)
-			if err != nil {
-				return fmt.Errorf("Failed to re-create proxy container: %w", err)
-			}
-			err = docker.StartContainer(newProxyContainer.Name, c.vanClient.DockerInterface)
-			if err != nil {
-				return fmt.Errorf("Failed to start proxy container: %w", err)
-			}
-		}
+		log.Println("ReDeploying proxy: ", serviceInterface.Address)
+		// proxyContainer, err := c.vanClient.CeDriver.ContainerInspect(serviceInterface.Address)
+		// if err != nil {
+		// 	return fmt.Errorf("Failed to retrieve current proxy container: %w", err)
+		// }
+		// actualConfig := "Please fix this"
+		// //		actualConfig := docker.FindEnvVar(proxyContainer.Config.Env, "QDROUTERD_CONF")
+		// if actualConfig == "" || actualConfig != config {
+		// 	log.Println("Updating proxy config for: ", serviceInterface.Address)
+		// 	err := c.deleteProxy(serviceInterface.Address)
+		// 	if err != nil {
+		// 		return fmt.Errorf("Failed to delete proxy container: %w", err)
+		// 	}
+		// 	newProxyContainer, err := docker.NewProxyContainer(serviceInterface, config, mapToHost, c.vanClient.DockerInterface)
+		// 	if err != nil {
+		// 		return fmt.Errorf("Failed to re-create proxy container: %w", err)
+		// 	}
+		// 	err = docker.StartContainer(newProxyContainer.Name, c.vanClient.DockerInterface)
+		// 	if err != nil {
+		// 		return fmt.Errorf("Failed to start proxy container: %w", err)
+		// 	}
+		//}
 	}
 	return nil
 
 }
 
 func (c *Controller) deleteProxy(name string) error {
-	err := docker.StopContainer(name, c.vanClient.DockerInterface)
+	err := c.vanClient.CeDriver.ContainerStop(name)
 	if err != nil {
 		return err
 	}
-	err = docker.RemoveContainer(name, c.vanClient.DockerInterface)
+	err = c.vanClient.CeDriver.ContainerRemove(name)
 	return err
 }
 
@@ -238,16 +237,17 @@ func (c *Controller) updateProxies() {
 	}
 }
 
-func (c *Controller) getProxies() map[string]dockertypes.Container {
-	proxies := make(map[string]dockertypes.Container)
+func (c *Controller) getProxies() map[string]driver.Container {
+	proxies := make(map[string]driver.Container)
 
-	filters := dockerfilters.NewArgs()
-	filters.Add("label", "skupper.io/application")
-	opts := dockertypes.ContainerListOptions{
+	filters := map[string][]string{
+		"label": {"skuper.io/application"},
+	}
+	opts := driver.ContainerListOptions{
 		Filters: filters,
 		All:     true,
 	}
-	containers, err := docker.ListContainers(opts, c.vanClient.DockerInterface)
+	containers, err := c.vanClient.CeDriver.ContainerList(opts)
 	if err == nil {
 		for _, container := range containers {
 			proxyName := strings.TrimPrefix(container.Names[0], "/")
@@ -285,6 +285,7 @@ func (c *Controller) processServiceDefs() {
 func (c *Controller) runServiceDefsWatcher() {
 	var watcher *fsnotify.Watcher
 
+	fmt.Println("Inservice defs watcher")
 	watcher, _ = fsnotify.NewWatcher()
 	defer watcher.Close()
 
@@ -302,6 +303,7 @@ func (c *Controller) runServiceDefsWatcher() {
 		}
 	}
 
+	fmt.Println("about to enter service defs watch loop")
 	for {
 		select {
 		case event, ok := <-watcher.Events:

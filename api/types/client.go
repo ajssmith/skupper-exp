@@ -11,19 +11,21 @@ type SiteConfig struct {
 }
 
 type SiteConfigSpec struct {
-	SkupperName         string
-	SkupperNamespace    string
-	IsEdge              bool
-	EnableController    bool
-	EnableServiceSync   bool
-	EnableRouterConsole bool
-	EnableConsole       bool
-	AuthMode            string
-	User                string
-	Password            string
-	MapToHost           bool
-	Replicas            int32
-	TraceLog            bool
+	SkupperName           string
+	SkupperNamespace      string
+	IsEdge                bool
+	EnableController      bool
+	EnableServiceSync     bool
+	EnableRouterConsole   bool
+	EnableConsole         bool
+	AuthMode              string
+	User                  string
+	Password              string
+	MapToHost             bool
+	Replicas              int32
+	TraceLog              bool
+	ContainerEngineDriver string
+	PluginPath            string
 }
 
 type ServiceInterfaceCreateOptions struct {
