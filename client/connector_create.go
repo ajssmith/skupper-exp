@@ -35,8 +35,15 @@ func generateConnectorName(path string) (string, error) {
 
 func (cli *VanClient) ConnectorCreate(secretFile string, options types.ConnectorCreateOptions) (string, error) {
 
-	// TODO: query site config to get patch and ce
-	cli.Init("/usr/lib64/skupper-plugins", "docker")
+	sc, err := cli.SiteConfigInspect(types.DefaultBridgeName)
+	if err != nil {
+		return "", fmt.Errorf("Unable to retrieve site config: %w", err)
+	}
+
+	err = cli.Init(sc.Spec.ContainerEngineDriver)
+	if err != nil {
+		return "", fmt.Errorf("Failed to intialize client: %w", err)
+	}
 
 	// TODO certs should return err
 	secret, err := certs.GetSecretContent(secretFile)
@@ -52,11 +59,6 @@ func (cli *VanClient) ConnectorCreate(secretFile string, options types.Connector
 	generatedBy, ok := secret["skupper.io/generated-by"]
 	if !ok {
 		return "", fmt.Errorf("Cannot find secret origin for token '%s'", secretFile)
-	}
-
-	sc, err := cli.SiteConfigInspect(types.DefaultBridgeName)
-	if err != nil {
-		return "", fmt.Errorf("Unable to retrieve site UUID: %w", err)
 	}
 
 	if sc.UID == string(generatedBy) {

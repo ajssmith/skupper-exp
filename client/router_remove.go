@@ -12,13 +12,19 @@ import (
 
 // RouterRemove delete a VAN (transport and controller) deployment
 func (cli *VanClient) RouterRemove() []error {
-
-	// TODO: query site config to get patch and ce
-	cli.Init("/usr/lib64/skupper-plugins", "docker")
-
 	results := []error{}
 
-	_, err := cli.CeDriver.ContainerInspect(types.ControllerDeploymentName)
+	sc, err := cli.SiteConfigInspect(types.DefaultBridgeName)
+	if err != nil {
+		return append(results, fmt.Errorf("Unable to retrieve site config: %w", err))
+	}
+
+	err = cli.Init(sc.Spec.ContainerEngineDriver)
+	if err != nil {
+		return append(results, fmt.Errorf("Failed to intialize client: %w", err))
+	}
+
+	_, err = cli.CeDriver.ContainerInspect(types.ControllerDeploymentName)
 	if err == nil {
 		// stop controller
 		err = cli.CeDriver.ContainerStop(types.ControllerDeploymentName)
@@ -36,12 +42,6 @@ func (cli *VanClient) RouterRemove() []error {
 	filters := map[string][]string{
 		"label": {"skupper.io/component"},
 	}
-	//	filters := dockerfilters.NewArgs()
-	//	filters.Add("label", "skupper.io/component")
-	//	opts := dockertypes.ContainerListOptions{
-	//		Filters: filters,
-	//		All:     true,
-	//	}
 	opts := driver.ContainerListOptions{
 		Filters: filters,
 		All:     true,

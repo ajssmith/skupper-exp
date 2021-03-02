@@ -25,7 +25,6 @@ type SiteConfigSpec struct {
 	Replicas              int32
 	TraceLog              bool
 	ContainerEngineDriver string
-	PluginPath            string
 }
 
 type ServiceInterfaceCreateOptions struct {

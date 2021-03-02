@@ -9,15 +9,21 @@ import (
 )
 
 func (cli *VanClient) ConnectorInspect(name string) (*types.ConnectorInspectResponse, error) {
-
-	// TODO: query site config to get patch and ce
-	cli.Init("/usr/lib64/skupper-plugins", "docker")
-
 	vci := &types.ConnectorInspectResponse{}
 	var role types.ConnectorRole
 	var suffix string
 
-	_, err := cli.CeDriver.ContainerInspect("skupper-router")
+	sc, err := cli.SiteConfigInspect(types.DefaultBridgeName)
+	if err != nil {
+		return vci, fmt.Errorf("Unable to retrieve site config: %w", err)
+	}
+
+	err = cli.Init(sc.Spec.ContainerEngineDriver)
+	if err != nil {
+		return vci, fmt.Errorf("Failed to intialize client: %w", err)
+	}
+
+	_, err = cli.CeDriver.ContainerInspect("skupper-router")
 	if err != nil {
 		// TODO: is not found versus error
 		return vci, fmt.Errorf("Unable to retrieve transport container (need init?): %w", err)

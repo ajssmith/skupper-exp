@@ -1,6 +1,11 @@
-FROM golang:1.13 AS builder
+FROM fedora:32 AS builder
 
 WORKDIR /go/src/app
+
+RUN dnf install -y --setopt=tsflags=nodocs golang make btrfs-progs-devel device-mapper-devel gpgme-devel && \
+    rpm -V golang make btrfs-progs-devel device-mapper-devel gpgme-devel && \
+    dnf clean all -y
+
 COPY go.mod .
 COPY go.sum .
 RUN go mod download
@@ -8,8 +13,12 @@ COPY . .
 
 RUN make build-controller
 
-FROM registry.access.redhat.com/ubi8-minimal
 
-WORKDIR /app
-COPY --from=builder /go/src/app/controller .
-CMD ["/app/controller"]
+#FROM registry.access.redhat.com/ubi8-minimal
+
+#WORKDIR /app
+#COPY --from=builder /go/src/app/controller .
+#COPY --from=builder /go/src/app/docker.so .
+#COPY --from=builder /go/src/app/podman.so .
+
+CMD ["/go/src/app/controller"]

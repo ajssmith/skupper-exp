@@ -1,4 +1,4 @@
-package main
+package driver
 
 import (
 	"bufio"
@@ -19,8 +19,7 @@ import (
 	"github.com/containers/podman/v2/pkg/specgen"
 
 	spec "github.com/opencontainers/runtime-spec/specs-go"
-
-	"github.com/ajssmith/skupper-exp/driver"
+	//	"github.com/ajssmith/skupper-exp/driver"
 )
 
 type podmanClient struct {
@@ -29,12 +28,11 @@ type podmanClient struct {
 	imagePullProgessDeadline time.Duration
 }
 
-var Driver podmanClient
+var PodmanDriver podmanClient
 
-func newContainerSpec(options driver.ContainerCreateOptions) *specgen.SpecGenerator {
-	sg := specgen.NewSpecGenerator("", true)
-
-	//	sg := specgen.NewSpecGenerator(options.ContainerConfig.Image, false)
+func newPodmanContainerSpec(options ContainerCreateOptions) *specgen.SpecGenerator {
+	//	sg := specgen.NewSpecGenerator("", true)
+	sg := specgen.NewSpecGenerator(options.ContainerConfig.Image, false)
 
 	var mounts []spec.Mount
 	for _, mount := range options.HostConfig.Mounts {
@@ -53,6 +51,20 @@ func newContainerSpec(options driver.ContainerCreateOptions) *specgen.SpecGenera
 	// storage
 	sg.ContainerStorageConfig.Mounts = mounts
 	sg.ContainerStorageConfig.Image = options.ContainerConfig.Image
+
+	// Security
+	sg.ContainerSecurityConfig.Privileged = true
+
+	// Neworking
+	cniNetworks := make([]string, 0, len(options.NetworkingConfig.EndpointsConfig))
+	for netName, _ := range options.NetworkingConfig.EndpointsConfig {
+		cniNetworks = append(cniNetworks, netName)
+	}
+	//var networks []string
+	//networks = append(networks, "skupper-network")
+	//	sg.ContainerNetworkConfig.NetNS.NSMode = "Bridge"
+
+	sg.ContainerNetworkConfig.CNINetworks = cniNetworks
 	return sg
 }
 
@@ -69,21 +81,21 @@ func (c *podmanClient) New() error {
 	if err != nil {
 		return fmt.Errorf("Coudnt's connect to podman: %w", err)
 	}
-	Driver.ctx = ctx
-	Driver.timeout = driver.DefaultTimeout
-	Driver.imagePullProgessDeadline = driver.DefaultImagePullingProgressReportInterval
+	PodmanDriver.ctx = ctx
+	PodmanDriver.timeout = DefaultTimeout
+	PodmanDriver.imagePullProgessDeadline = DefaultImagePullingProgressReportInterval
 
 	return nil
 }
 
-func (c *podmanClient) ImageInspect(id string) (*driver.ImageInspect, error) {
+func (c *podmanClient) ImageInspect(id string) (*ImageInspect, error) {
 	fmt.Println("In podman inspect image")
 
 	data, err := images.GetImage(c.ctx, id, nil)
 	if err != nil {
-		return &driver.ImageInspect{}, err
+		return &ImageInspect{}, err
 	}
-	image := &driver.ImageInspect{
+	image := &ImageInspect{
 		ID:       data.ID,
 		Size:     data.Size,
 		RepoTags: data.RepoTags,
@@ -91,9 +103,8 @@ func (c *podmanClient) ImageInspect(id string) (*driver.ImageInspect, error) {
 	return image, nil
 }
 
-func (c *podmanClient) ImagesPull(refStr string, options driver.ImagePullOptions) ([]string, error) {
+func (c *podmanClient) ImagesPull(refStr string, options ImagePullOptions) ([]string, error) {
 	fmt.Println("In podman pull images")
-	fmt.Printf("podman client %+v\n", c)
 	strSlice, err := images.Pull(c.ctx, refStr, entities.ImagePullOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("Could not pull image: %w", err)
@@ -101,16 +112,16 @@ func (c *podmanClient) ImagesPull(refStr string, options driver.ImagePullOptions
 	return strSlice, nil
 }
 
-func (c *podmanClient) ImagesList(options driver.ImageListOptions) ([]driver.ImageSummary, error) {
+func (c *podmanClient) ImagesList(options ImageListOptions) ([]ImageSummary, error) {
 	fmt.Println("In podman list images")
 
 	images, err := images.List(c.ctx, nil, nil)
 	if err != nil {
 		return nil, err
 	}
-	var summary []driver.ImageSummary
+	var summary []ImageSummary
 	for _, image := range images {
-		summary = append(summary, driver.ImageSummary{
+		summary = append(summary, ImageSummary{
 			ID:       image.ID,
 			Created:  image.Created,
 			Labels:   image.Labels,
@@ -125,16 +136,16 @@ func (c *podmanClient) ImageVersion(id string) (string, error) {
 	return "no-image", nil
 }
 
-func (c *podmanClient) ContainerCreate(options driver.ContainerCreateOptions) (driver.ContainerCreateResponse, error) {
+func (c *podmanClient) ContainerCreate(options ContainerCreateOptions) (ContainerCreateResponse, error) {
 	fmt.Println("Inside podman container create")
 	//	s := specgen.NewSpecGenerator(image, false)
-	spec := newContainerSpec(options)
+	spec := newPodmanContainerSpec(options)
 	r, err := containers.CreateWithSpec(c.ctx, spec)
 	if err != nil {
-		return driver.ContainerCreateResponse{}, err
+		return ContainerCreateResponse{}, err
 	}
 
-	return driver.ContainerCreateResponse{ID: r.ID}, nil
+	return ContainerCreateResponse{ID: r.ID}, nil
 }
 
 func (c *podmanClient) ContainerStart(id string) error {
@@ -151,37 +162,40 @@ func (c *podmanClient) ContainerWait(id string, status string, timeout time.Dura
 	return err
 }
 
-func (c *podmanClient) ContainerList(driver.ContainerListOptions) ([]driver.ContainerSummary, error) {
+func (c *podmanClient) ContainerList(ContainerListOptions) ([]ContainerSummary, error) {
 	fmt.Println("Inside podman container list")
 	// TODO convert options
 	var latestContainers = 1
 	cl, err := containers.List(c.ctx, nil, nil, &latestContainers, nil, nil, nil)
-	var dc []driver.ContainerSummary
+	var dc []ContainerSummary
 	for _, container := range cl {
 		// TODO all fields
-		dc = append(dc, driver.ContainerSummary{
-			ID:      container.ID,
-			Names:   container.Names,
-			Image:   container.Image,
-			ImageID: container.ImageID,
-			//Command: container.Command,
-			//Ports:   container.Ports,
-			Labels: container.Labels,
-			State:  container.State,
-			Status: container.Status,
-			//Mounts:  container.Mounts,
-		})
+		//fmt.Println("Container list name, id", container.Names[0], container.ID)
+		if container.Names[0] != "skupper-service-controller" {
+			dc = append(dc, ContainerSummary{
+				ID:      container.ID,
+				Names:   container.Names,
+				Image:   container.Image,
+				ImageID: container.ImageID,
+				//Command: container.Command,
+				//Ports:   container.Ports,
+				Labels: container.Labels,
+				State:  container.State,
+				Status: container.Status,
+				//Mounts:  container.Mounts,
+			})
+		}
 	}
 	return dc, err
 }
 
-func (c *podmanClient) ContainerInspect(id string) (*driver.ContainerInspect, error) {
+func (c *podmanClient) ContainerInspect(id string) (*ContainerInspect, error) {
 	fmt.Println("Inside podman container inspect")
 	container, err := containers.Inspect(c.ctx, id, nil)
 	if err != nil {
-		return &driver.ContainerInspect{}, err
+		return &ContainerInspect{}, err
 	}
-	icd := &driver.ContainerInspect{
+	icd := &ContainerInspect{
 		ID:      container.ID,
 		Created: container.Created,
 		Path:    container.Path,
@@ -191,7 +205,7 @@ func (c *podmanClient) ContainerInspect(id string) (*driver.ContainerInspect, er
 		ImageName: container.ImageName,
 		Name:      container.Name,
 		//		Mounts: cd.Mounts,
-		NetworkSettings: driver.ContainerNetworkConfig{
+		NetworkSettings: ContainerNetworkConfig{
 			Gateway:              container.NetworkSettings.Gateway,
 			IPAddress:            container.NetworkSettings.IPAddress,
 			IPPrefixLen:          container.NetworkSettings.IPPrefixLen,
@@ -199,9 +213,9 @@ func (c *podmanClient) ContainerInspect(id string) (*driver.ContainerInspect, er
 		},
 	}
 	if len(container.NetworkSettings.Networks) > 0 {
-		icd.NetworkSettings.Networks = make(map[string]*driver.NetworkEndpointSetting)
+		icd.NetworkSettings.Networks = make(map[string]*NetworkEndpointSetting)
 		for net, setting := range container.NetworkSettings.Networks {
-			endpoint := new(driver.NetworkEndpointSetting)
+			endpoint := new(NetworkEndpointSetting)
 			endpoint.NetworkID = net
 			endpoint.Gateway = setting.Gateway
 			endpoint.IPAddress = setting.IPAddress
@@ -230,7 +244,7 @@ func (c *podmanClient) ContainerRemove(id string) error {
 	return containers.Remove(c.ctx, id, &force, &force)
 }
 
-func (c *podmanClient) NetworkCreate(name string, options driver.NetworkCreateOptions) (driver.NetworkCreateResponse, error) {
+func (c *podmanClient) NetworkCreate(name string, options NetworkCreateOptions) (NetworkCreateResponse, error) {
 	fmt.Println("Inside podman network create")
 	nco := entities.NetworkCreateOptions{
 		Driver: options.Driver,
@@ -239,13 +253,13 @@ func (c *podmanClient) NetworkCreate(name string, options driver.NetworkCreateOp
 	}
 	resp, err := network.Create(c.ctx, nco, &name)
 	if err != nil {
-		return driver.NetworkCreateResponse{}, err
+		return NetworkCreateResponse{}, err
 	}
 	fmt.Printf("Network create response %+v\n", resp)
-	return driver.NetworkCreateResponse{}, err
+	return NetworkCreateResponse{}, err
 }
 
-func (c *podmanClient) NetworkInspect(id string) (driver.NetworkInspect, error) {
+func (c *podmanClient) NetworkInspect(id string) (NetworkInspect, error) {
 	fmt.Println("Inside podman network inspect")
 	// nir is map[string]interface
 	nir, err := network.Inspect(c.ctx, id)
@@ -259,7 +273,7 @@ func (c *podmanClient) NetworkInspect(id string) (driver.NetworkInspect, error) 
 	//	if _, ok := nir["name"]; ok {
 	//		dnr.Name = nir["name"]
 	//	}
-	return driver.NetworkInspect{Name: name}, err
+	return NetworkInspect{Name: name}, err
 }
 
 func (c *podmanClient) NetworkRemove(id string) error {
@@ -295,7 +309,7 @@ func (pwc *PmWriteCloser) Close() error {
 	return nil
 }
 
-func (c *podmanClient) ContainerExecKeeper(id string, cmd []string) (driver.ExecResult, error) {
+func (c *podmanClient) ContainerExecKeeper(id string, cmd []string) (ExecResult, error) {
 	fmt.Println("Inside docker container exec")
 
 	//TODO: there may be a better way to capture, stderr too?
@@ -310,7 +324,7 @@ func (c *podmanClient) ContainerExecKeeper(id string, cmd []string) (driver.Exec
 
 	execID, err := containers.ExecCreate(c.ctx, id, execConfig)
 	if err != nil {
-		return driver.ExecResult{}, err
+		return ExecResult{}, err
 	}
 
 	streams := new(define.AttachStreams)
@@ -321,7 +335,7 @@ func (c *podmanClient) ContainerExecKeeper(id string, cmd []string) (driver.Exec
 
 	err = containers.ExecStartAndAttach(c.ctx, execID, streams)
 	if err != nil {
-		return driver.ExecResult{}, err
+		return ExecResult{}, err
 	}
 
 	//TODO: channel behaviors
@@ -342,12 +356,12 @@ func (c *podmanClient) ContainerExecKeeper(id string, cmd []string) (driver.Exec
 
 	inspectOut, err := containers.ExecInspect(c.ctx, execID)
 	if err != nil {
-		return driver.ExecResult{}, err
+		return ExecResult{}, err
 	}
-	return driver.ExecResult{ExitCode: inspectOut.ExitCode, OutBuffer: &outBuf, ErrBuffer: nil}, nil
+	return ExecResult{ExitCode: inspectOut.ExitCode, OutBuffer: &outBuf, ErrBuffer: nil}, nil
 }
 
-func (c *podmanClient) ContainerExec(id string, cmd []string) (driver.ExecResult, error) {
+func (c *podmanClient) ContainerExec(id string, cmd []string) (ExecResult, error) {
 	fmt.Println("Inside docker container exec")
 
 	//TODO: there may be a better way to capture, stderr too?
@@ -362,7 +376,7 @@ func (c *podmanClient) ContainerExec(id string, cmd []string) (driver.ExecResult
 
 	execID, err := containers.ExecCreate(c.ctx, id, execConfig)
 	if err != nil {
-		return driver.ExecResult{}, err
+		return ExecResult{}, err
 	}
 
 	streams := new(define.AttachStreams)
@@ -373,7 +387,7 @@ func (c *podmanClient) ContainerExec(id string, cmd []string) (driver.ExecResult
 
 	err = containers.ExecStartAndAttach(c.ctx, execID, streams)
 	if err != nil {
-		return driver.ExecResult{}, err
+		return ExecResult{}, err
 	}
 
 	var outBuf, errBuf bytes.Buffer
@@ -393,11 +407,11 @@ func (c *podmanClient) ContainerExec(id string, cmd []string) (driver.ExecResult
 
 	inspectOut, err := containers.ExecInspect(c.ctx, execID)
 	if err != nil {
-		return driver.ExecResult{}, err
+		return ExecResult{}, err
 	}
-	return driver.ExecResult{ExitCode: inspectOut.ExitCode, OutBuffer: &outBuf, ErrBuffer: &errBuf}, nil
+	return ExecResult{ExitCode: inspectOut.ExitCode, OutBuffer: &outBuf, ErrBuffer: &errBuf}, nil
 }
 
-func (c *podmanClient) Info() (driver.Info, error) {
-	return driver.Info{}, nil
+func (c *podmanClient) Info() (Info, error) {
+	return Info{}, nil
 }

@@ -9,8 +9,15 @@ import (
 )
 
 func (cli *VanClient) ConnectorTokenCreate(subject string, secretFile string) error {
-	// TODO: query site config to get patch and ce
-	cli.Init("/usr/lib64/skupper-plugins", "docker")
+	sc, err := cli.SiteConfigInspect(types.DefaultBridgeName)
+	if err != nil {
+		return fmt.Errorf("Unable to retrieve site config: %w", err)
+	}
+
+	err = cli.Init(sc.Spec.ContainerEngineDriver)
+	if err != nil {
+		return fmt.Errorf("Failed to intialize client: %w", err)
+	}
 
 	// verify that the transport is interior mode
 	router, err := cli.CeDriver.ContainerInspect("skupper-router")
@@ -38,11 +45,6 @@ func (cli *VanClient) ConnectorTokenCreate(subject string, secretFile string) er
 	annotations := make(map[string]string)
 	annotations["inter-router-port"] = "55671"
 	annotations["inter-router-host"] = ipAddr
-
-	sc, err := cli.SiteConfigInspect(types.DefaultBridgeName)
-	if err != nil {
-		return fmt.Errorf("Unable to retrieve site config data: %w", err)
-	}
 	annotations[types.TokenGeneratedBy] = sc.UID
 
 	// TODO err return from certs pkg

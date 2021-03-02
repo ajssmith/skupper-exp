@@ -191,7 +191,6 @@ installation that can then be connected to other skupper installations`,
 	cmd.Flags().StringVarP(&routerCreateOpts.Password, "console-password", "", "", "Skupper console user. Valid only when --router-console-auth=internal")
 	cmd.Flags().BoolVarP(&routerCreateOpts.MapToHost, "publish-to-host", "", false, "Port map services to host")
 	cmd.Flags().StringVarP(&routerCreateOpts.ContainerEngineDriver, "ce-driver", "", "docker", "Container Engine driver. One of: 'docker', 'podman'")
-	cmd.Flags().StringVarP(&routerCreateOpts.PluginPath, "plugin-path", "", "/usr/lib64/skupper-plugins", "Container Engine driver plugin path")
 	cmd.Flags().BoolVarP(&routerCreateOpts.TraceLog, "enable-trace-log", "", false, "Enable router trace log")
 	cmd.Flags().MarkHidden("enable-trace-log")
 

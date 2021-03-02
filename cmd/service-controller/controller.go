@@ -237,8 +237,8 @@ func (c *Controller) updateProxies() {
 	}
 }
 
-func (c *Controller) getProxies() map[string]driver.Container {
-	proxies := make(map[string]driver.Container)
+func (c *Controller) getProxies() map[string]driver.ContainerSummary {
+	proxies := make(map[string]driver.ContainerSummary)
 
 	filters := map[string][]string{
 		"label": {"skuper.io/application"},

@@ -10,24 +10,25 @@ build-cmd:
 build-controller:
 	go build -ldflags="-X main.version=${VERSION}"  -o controller cmd/service-controller/main.go cmd/service-controller/controller.go cmd/service-controller/service_sync.go cmd/service-controller/bridges.go
 
-build-plugins:
+build-plugins: build-docker-plugin build-podman-plugin
+
+build-docker-plugin:
 	go build -ldflags="-X main.version=${VERSION}" --buildmode=plugin -o docker.so plug-ins/docker/docker.go
+
+build-podman-plugin:
 	go build -ldflags="-X main.version=${VERSION}" --buildmode=plugin -o podman.so plug-ins/podman/podman.go
 
-docker-build:
-	docker build -t ${PUBLIC_IMAGE} .
+local-build:
+	docker build -t ${LOCAL_IMAGE} -f Dockerfile .
 
-docker-build-f32:
-	docker build -t ${PUBLIC_IMAGE} -f Dockerfile.fedora .
+local-push:
+	docker push ${LOCAL_IMAGE}
 
-docker-push:
+public-build:
+	docker build -t ${PUBLIC_IMAGE} -f Dockerfile .
+
+public-push:
 	docker push ${PUBLIC_IMAGE}
-
-podman-build-f32:
-	podman build -t ${LOCAL_IMAGE} -f Dockerfile.fedora .
-
-podman-push:
-	podman push ${LOCAL_IMAGE}
 
 format:
 	go fmt ./...

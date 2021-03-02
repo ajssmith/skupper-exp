@@ -128,10 +128,17 @@ func validateServiceInterface(service *types.ServiceInterface) error {
 }
 
 func (cli *VanClient) ServiceInterfaceUpdate(ctx context.Context, service *types.ServiceInterface) error {
-	// TODO: query site config to get patch and ce
-	cli.Init("/usr/lib64/skupper-plugins", "docker")
+	sc, err := cli.SiteConfigInspect(types.DefaultBridgeName)
+	if err != nil {
+		return fmt.Errorf("Unable to retrieve site config: %w", err)
+	}
 
-	_, err := cli.CeDriver.ContainerInspect("skupper-router")
+	err = cli.Init(sc.Spec.ContainerEngineDriver)
+	if err != nil {
+		return fmt.Errorf("Failed to intialize client: %w", err)
+	}
+
+	_, err = cli.CeDriver.ContainerInspect("skupper-router")
 	if err != nil {
 		return fmt.Errorf("Failed to retrieve transport container (need init?): %w", err)
 	}
@@ -149,10 +156,17 @@ func (cli *VanClient) ServiceInterfaceUpdate(ctx context.Context, service *types
 }
 
 func (cli *VanClient) ServiceInterfaceBind(service *types.ServiceInterface, targetType string, targetName string, protocol string, targetPort int) error {
-	// TODO: query site config to get patch and ce
-	cli.Init("/usr/lib64/skupper-plugins", "docker")
+	sc, err := cli.SiteConfigInspect(types.DefaultBridgeName)
+	if err != nil {
+		return fmt.Errorf("Unable to retrieve site config: %w", err)
+	}
 
-	_, err := cli.CeDriver.ContainerInspect("skupper-router")
+	err = cli.Init(sc.Spec.ContainerEngineDriver)
+	if err != nil {
+		return fmt.Errorf("Failed to intialize client: %w", err)
+	}
+
+	_, err = cli.CeDriver.ContainerInspect("skupper-router")
 	if err != nil {
 		return fmt.Errorf("Failed to retrieve transport container (need init?): %w", err)
 	}
@@ -190,12 +204,19 @@ func (cli *VanClient) ServiceInterfaceBind(service *types.ServiceInterface, targ
 }
 
 func removeServiceInterfaceTarget(serviceName string, targetName string, deleteIfNoTargets bool, cli *VanClient) error {
-	// TODO: query site config to get patch and ce
-	cli.Init("/usr/lib64/skupper-plugins", "docker")
+	sc, err := cli.SiteConfigInspect(types.DefaultBridgeName)
+	if err != nil {
+		return fmt.Errorf("Unable to retrieve site config: %w", err)
+	}
+
+	err = cli.Init(sc.Spec.ContainerEngineDriver)
+	if err != nil {
+		return fmt.Errorf("Failed to intialize client: %w", err)
+	}
 
 	current := make(map[string]types.ServiceInterface)
 
-	_, err := cli.CeDriver.ContainerInspect("skupper-router")
+	_, err = cli.CeDriver.ContainerInspect("skupper-router")
 	if err != nil {
 		return fmt.Errorf("Failed to retrieve transport container (need init?): %w", err)
 	}
@@ -261,10 +282,17 @@ func removeServiceInterfaceTarget(serviceName string, targetName string, deleteI
 }
 
 func (cli *VanClient) ServiceInterfaceUnbind(targetType string, targetName string, address string, deleteIfNoTargets bool) error {
-	// TODO: query site config to get patch and ce
-	cli.Init("/usr/lib64/skupper-plugins", "docker")
+	sc, err := cli.SiteConfigInspect(types.DefaultBridgeName)
+	if err != nil {
+		return fmt.Errorf("Unable to retrieve site config: %w", err)
+	}
 
-	_, err := cli.CeDriver.ContainerInspect("skupper-router")
+	err = cli.Init(sc.Spec.ContainerEngineDriver)
+	if err != nil {
+		return fmt.Errorf("Failed to intialize client: %w", err)
+	}
+
+	_, err = cli.CeDriver.ContainerInspect("skupper-router")
 	if err != nil {
 		return fmt.Errorf("Failed to retrieve transport container (need init?): %w", err)
 	}

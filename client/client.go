@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"plugin"
 
-	//	"github.com/ajssmith/skupper-exp/pkg/docker/libdocker"
 	"github.com/ajssmith/skupper-exp/driver"
 )
 
@@ -15,13 +14,36 @@ type VanClient struct {
 }
 
 func NewClient() (*VanClient, error) {
-	fmt.Println("I got to NewClient")
 	c := &VanClient{}
 	// TODO: what init can we do here
 	return c, nil
 }
 
-func (cli *VanClient) Init(path string, ced string) error {
+func (cli *VanClient) Init(ced string) error {
+	var drv driver.Driver
+
+	fmt.Println("client init for ce: ", ced)
+	if cli.CeDriver != nil {
+		return nil
+	}
+
+	if ced == "docker" {
+		drv = &driver.DockerDriver
+	} else if ced == "podman" {
+		drv = &driver.PodmanDriver
+	} else {
+		return fmt.Errorf("CE driver %s not recognized", ced)
+	}
+
+	err := drv.New()
+	if err != nil {
+		return fmt.Errorf("Error connecting to CE backend: %w", err)
+	}
+	cli.CeDriver = drv
+	return nil
+}
+
+func (cli *VanClient) init2(path string, ced string) error {
 	var p *plugin.Plugin
 
 	if cli.CeDriver != nil {

@@ -9,12 +9,20 @@ import (
 )
 
 func (cli *VanClient) ServiceInterfaceInspect(address string) (*types.ServiceInterface, error) {
-	// TODO: query site config to get patch and ce
-	cli.Init("/usr/lib64/skupper-plugins", "docker")
+
+	sc, err := cli.SiteConfigInspect(types.DefaultBridgeName)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to retrieve site config: %w", err)
+	}
+
+	err = cli.Init(sc.Spec.ContainerEngineDriver)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to intialize client: %w", err)
+	}
 
 	svcDefs := make(map[string]types.ServiceInterface)
 
-	_, err := cli.CeDriver.ContainerInspect("skupper-router")
+	_, err = cli.CeDriver.ContainerInspect("skupper-router")
 	if err != nil {
 		return nil, fmt.Errorf("Failed to retrieve transport container (need init?): %w", err)
 	}

@@ -1,4 +1,4 @@
-package main
+package driver
 
 import (
 	"bytes"
@@ -23,7 +23,7 @@ import (
 	dockermessage "github.com/docker/docker/pkg/jsonmessage"
 	dockerstdcopy "github.com/docker/docker/pkg/stdcopy"
 
-	"github.com/ajssmith/skupper-exp/driver"
+	//	"github.com/ajssmith/skupper-exp/driver"
 	skupperutils "github.com/skupperproject/skupper/pkg/utils"
 )
 
@@ -50,13 +50,13 @@ type ImageNotFoundError struct {
 	ID string
 }
 
-var Driver dockerClient
+var DockerDriver dockerClient
 
 func getTimeoutContext(d *dockerClient) (context.Context, context.CancelFunc) {
 	return context.WithTimeout(context.Background(), d.timeout)
 }
 
-func newContainerSpec(options driver.ContainerCreateOptions) *dockertypes.ContainerCreateConfig {
+func newDockerContainerSpec(options ContainerCreateOptions) *dockertypes.ContainerCreateConfig {
 
 	var mounts []dockermounttypes.Mount
 	for _, mount := range options.HostConfig.Mounts {
@@ -108,13 +108,13 @@ func (c *dockerClient) New() error {
 		return fmt.Errorf("Couldn't connect to docker: %w", err)
 	}
 
-	Driver.client = client
-	Driver.timeout = driver.DefaultTimeout
-	Driver.imagePullProgessDeadline = driver.DefaultImagePullingProgressReportInterval
+	DockerDriver.client = client
+	DockerDriver.timeout = DefaultTimeout
+	DockerDriver.imagePullProgessDeadline = DefaultImagePullingProgressReportInterval
 
-	ctx, cancel := getTimeoutContext(&Driver)
+	ctx, cancel := getTimeoutContext(&DockerDriver)
 	defer cancel()
-	Driver.client.NegotiateAPIVersion(ctx)
+	DockerDriver.client.NegotiateAPIVersion(ctx)
 
 	return nil
 }
@@ -232,7 +232,7 @@ func (p *progressReporter) stop() {
 	close(p.stopCh)
 }
 
-func (c *dockerClient) ImagesPull(refStr string, options driver.ImagePullOptions) ([]string, error) {
+func (c *dockerClient) ImagesPull(refStr string, options ImagePullOptions) ([]string, error) {
 	// TODO: return common []string
 	fmt.Println("In docker pull images")
 	// RegistryAuth is the base64 encoded credentials for the registry
@@ -272,10 +272,10 @@ func (c *dockerClient) ImagesPull(refStr string, options driver.ImagePullOptions
 	return nil, nil
 }
 
-func (c *dockerClient) ImageInspect(id string) (*driver.ImageInspect, error) {
+func (c *dockerClient) ImageInspect(id string) (*ImageInspect, error) {
 	fmt.Println("In docker inspect image")
 
-	ctx, cancel := getTimeoutContext(&Driver)
+	ctx, cancel := getTimeoutContext(&DockerDriver)
 	defer cancel()
 
 	data, _, err := c.client.ImageInspectWithRaw(ctx, id)
@@ -286,7 +286,7 @@ func (c *dockerClient) ImageInspect(id string) (*driver.ImageInspect, error) {
 		return nil, err
 	}
 
-	image := &driver.ImageInspect{
+	image := &ImageInspect{
 		ID:       data.ID,
 		Size:     data.Size,
 		RepoTags: data.RepoTags,
@@ -294,9 +294,9 @@ func (c *dockerClient) ImageInspect(id string) (*driver.ImageInspect, error) {
 	return image, nil
 }
 
-func (c *dockerClient) ImagesList(options driver.ImageListOptions) ([]driver.ImageSummary, error) {
+func (c *dockerClient) ImagesList(options ImageListOptions) ([]ImageSummary, error) {
 	fmt.Println("In docker list images")
-	ctx, cancel := getTimeoutContext(&Driver)
+	ctx, cancel := getTimeoutContext(&DockerDriver)
 	defer cancel()
 
 	images, err := c.client.ImageList(ctx, dockertypes.ImageListOptions{})
@@ -306,9 +306,9 @@ func (c *dockerClient) ImagesList(options driver.ImageListOptions) ([]driver.Ima
 	if err != nil {
 		return nil, err
 	}
-	var summary []driver.ImageSummary
+	var summary []ImageSummary
 	for _, image := range images {
-		summary = append(summary, driver.ImageSummary{
+		summary = append(summary, ImageSummary{
 			ID:          image.ID,
 			Labels:      image.Labels,
 			RepoTags:    image.RepoTags,
@@ -319,7 +319,7 @@ func (c *dockerClient) ImagesList(options driver.ImageListOptions) ([]driver.Ima
 }
 
 func (c *dockerClient) ImageVersion(id string) (string, error) {
-	ctx, cancel := getTimeoutContext(&Driver)
+	ctx, cancel := getTimeoutContext(&DockerDriver)
 	defer cancel()
 
 	iibd, _, err := c.client.ImageInspectWithRaw(ctx, id)
@@ -342,25 +342,25 @@ func (c *dockerClient) ImageVersion(id string) (string, error) {
 	}
 }
 
-func (c *dockerClient) ContainerCreate(options driver.ContainerCreateOptions) (driver.ContainerCreateResponse, error) {
+func (c *dockerClient) ContainerCreate(options ContainerCreateOptions) (ContainerCreateResponse, error) {
 	fmt.Println("Inside docker container create")
 
-	ctx, cancel := getTimeoutContext(&Driver)
+	ctx, cancel := getTimeoutContext(&DockerDriver)
 	defer cancel()
 
-	opts := newContainerSpec(options)
+	opts := newDockerContainerSpec(options)
 
 	ccb, err := c.client.ContainerCreate(ctx, opts.Config, opts.HostConfig, opts.NetworkingConfig, nil, opts.Name)
 	if err != nil {
-		return driver.ContainerCreateResponse{}, err
+		return ContainerCreateResponse{}, err
 	}
-	return driver.ContainerCreateResponse{ID: ccb.ID}, nil
+	return ContainerCreateResponse{ID: ccb.ID}, nil
 }
 
 func (c *dockerClient) ContainerStart(id string) error {
 	fmt.Println("Inside docker start container")
 
-	ctx, cancel := getTimeoutContext(&Driver)
+	ctx, cancel := getTimeoutContext(&DockerDriver)
 	defer cancel()
 
 	err := c.client.ContainerStart(ctx, id, dockertypes.ContainerStartOptions{})
@@ -389,10 +389,10 @@ func (c *dockerClient) ContainerWait(id string, status string, timeout time.Dura
 	return err
 }
 
-func (c *dockerClient) ContainerList(opts driver.ContainerListOptions) ([]driver.ContainerSummary, error) {
+func (c *dockerClient) ContainerList(opts ContainerListOptions) ([]ContainerSummary, error) {
 	fmt.Println("Inside docker container list")
 
-	ctx, cancel := getTimeoutContext(&Driver)
+	ctx, cancel := getTimeoutContext(&DockerDriver)
 	defer cancel()
 
 	//TODO is this correct conversion of map[string][]string to filters
@@ -406,7 +406,7 @@ func (c *dockerClient) ContainerList(opts driver.ContainerListOptions) ([]driver
 		Filters: filters,
 		All:     opts.All,
 	})
-	var dc []driver.ContainerSummary
+	var dc []ContainerSummary
 	if ctxErr := contextError(ctx); ctxErr != nil {
 		return dc, ctxErr
 	}
@@ -415,7 +415,7 @@ func (c *dockerClient) ContainerList(opts driver.ContainerListOptions) ([]driver
 	}
 	for _, container := range containers {
 		// TODO all fields
-		dc = append(dc, driver.ContainerSummary{
+		dc = append(dc, ContainerSummary{
 			ID:      container.ID,
 			Names:   container.Names,
 			Image:   container.Image,
@@ -431,10 +431,10 @@ func (c *dockerClient) ContainerList(opts driver.ContainerListOptions) ([]driver
 	return dc, nil
 }
 
-func (c *dockerClient) ContainerInspect(id string) (*driver.ContainerInspect, error) {
+func (c *dockerClient) ContainerInspect(id string) (*ContainerInspect, error) {
 	fmt.Println("Inside docker container inspect")
 
-	ctx, cancel := getTimeoutContext(&Driver)
+	ctx, cancel := getTimeoutContext(&DockerDriver)
 	defer cancel()
 
 	container, err := c.client.ContainerInspect(ctx, id)
@@ -444,10 +444,10 @@ func (c *dockerClient) ContainerInspect(id string) (*driver.ContainerInspect, er
 	if err != nil {
 		return nil, err
 	}
-	mounts := []driver.MountPoint{}
+	mounts := []MountPoint{}
 	for _, mount := range container.Mounts {
-		mounts = append(mounts, driver.MountPoint{
-			Type:        driver.TypeBind,
+		mounts = append(mounts, MountPoint{
+			Type:        TypeBind,
 			Name:        mount.Name,
 			Source:      mount.Source,
 			Destination: mount.Destination,
@@ -465,23 +465,23 @@ func (c *dockerClient) ContainerInspect(id string) (*driver.ContainerInspect, er
 			envVars[name] = value
 		}
 	}
-	icd := &driver.ContainerInspect{
+	icd := &ContainerInspect{
 		ID: container.ID,
 		//Created: container.Created,
 		Path: container.Path,
 		Args: container.Args,
-		State: &driver.ContainerState{
+		State: &ContainerState{
 			Status: container.State.Status,
 		},
 		Image: container.Image,
 		//ImageName: container.ImageName,
 		Name:   container.Name,
 		Mounts: mounts,
-		Config: driver.ContainerConfig{
+		Config: ContainerConfig{
 			Hostname:     container.Config.Hostname,
 			ExposedPorts: container.Config.ExposedPorts,
 			Env:          envVars,
-			Healthcheck: &driver.HealthConfig{
+			Healthcheck: &HealthConfig{
 				Test:        container.Config.Healthcheck.Test,
 				Interval:    container.Config.Healthcheck.Interval,
 				Timeout:     container.Config.Healthcheck.Timeout,
@@ -491,16 +491,16 @@ func (c *dockerClient) ContainerInspect(id string) (*driver.ContainerInspect, er
 			Image:  container.Config.Image,
 			Labels: container.Config.Labels,
 		},
-		NetworkSettings: driver.ContainerNetworkConfig{
+		NetworkSettings: ContainerNetworkConfig{
 			Gateway:     container.NetworkSettings.DefaultNetworkSettings.Gateway,
 			IPAddress:   container.NetworkSettings.DefaultNetworkSettings.IPAddress,
 			IPPrefixLen: container.NetworkSettings.DefaultNetworkSettings.IPPrefixLen,
 		},
 	}
 	if len(container.NetworkSettings.Networks) > 0 {
-		icd.NetworkSettings.Networks = make(map[string]*driver.NetworkEndpointSetting)
+		icd.NetworkSettings.Networks = make(map[string]*NetworkEndpointSetting)
 		for net, setting := range container.NetworkSettings.Networks {
-			endpoint := new(driver.NetworkEndpointSetting)
+			endpoint := new(NetworkEndpointSetting)
 			endpoint.NetworkID = net
 			endpoint.Gateway = setting.Gateway
 			endpoint.IPAddress = setting.IPAddress
@@ -515,7 +515,7 @@ func (c *dockerClient) ContainerInspect(id string) (*driver.ContainerInspect, er
 func (c *dockerClient) ContainerRestart(id string) error {
 	fmt.Println("Inside docker restart container")
 
-	ctx, cancel := getTimeoutContext(&Driver)
+	ctx, cancel := getTimeoutContext(&DockerDriver)
 	defer cancel()
 
 	timeout := 10 * time.Second
@@ -529,7 +529,7 @@ func (c *dockerClient) ContainerRestart(id string) error {
 func (c *dockerClient) ContainerStop(id string) error {
 	fmt.Println("Inside docker stop container")
 
-	ctx, cancel := getTimeoutContext(&Driver)
+	ctx, cancel := getTimeoutContext(&DockerDriver)
 	defer cancel()
 
 	err := c.client.ContainerStop(ctx, id, nil)
@@ -541,7 +541,7 @@ func (c *dockerClient) ContainerStop(id string) error {
 
 func (c *dockerClient) ContainerRemove(id string) error {
 	fmt.Println("Inside docker container remove")
-	ctx, cancel := getTimeoutContext(&Driver)
+	ctx, cancel := getTimeoutContext(&DockerDriver)
 	defer cancel()
 
 	err := c.client.ContainerRemove(ctx, id, dockertypes.ContainerRemoveOptions{})
@@ -551,10 +551,10 @@ func (c *dockerClient) ContainerRemove(id string) error {
 	return err
 }
 
-func (c *dockerClient) NetworkCreate(name string, options driver.NetworkCreateOptions) (driver.NetworkCreateResponse, error) {
+func (c *dockerClient) NetworkCreate(name string, options NetworkCreateOptions) (NetworkCreateResponse, error) {
 	fmt.Println("Inside docker network create")
 
-	ctx, cancel := getTimeoutContext(&Driver)
+	ctx, cancel := getTimeoutContext(&DockerDriver)
 	defer cancel()
 
 	ncr, err := c.client.NetworkCreate(ctx, name, dockertypes.NetworkCreate{
@@ -567,15 +567,15 @@ func (c *dockerClient) NetworkCreate(name string, options driver.NetworkCreateOp
 		},
 	})
 	if ctxErr := contextError(ctx); ctxErr != nil {
-		return driver.NetworkCreateResponse{}, ctxErr
+		return NetworkCreateResponse{}, ctxErr
 	}
-	return driver.NetworkCreateResponse{ID: ncr.ID, Warning: ncr.Warning}, err
+	return NetworkCreateResponse{ID: ncr.ID, Warning: ncr.Warning}, err
 }
 
-func (c *dockerClient) NetworkInspect(id string) (driver.NetworkInspect, error) {
-	var netResource driver.NetworkInspect
+func (c *dockerClient) NetworkInspect(id string) (NetworkInspect, error) {
+	var netResource NetworkInspect
 
-	ctx, cancel := getTimeoutContext(&Driver)
+	ctx, cancel := getTimeoutContext(&DockerDriver)
 	defer cancel()
 
 	nr, err := c.client.NetworkInspect(ctx, id, dockertypes.NetworkInspectOptions{})
@@ -583,9 +583,9 @@ func (c *dockerClient) NetworkInspect(id string) (driver.NetworkInspect, error) 
 		return netResource, ctxErr
 	}
 	if len(nr.Containers) > 0 {
-		netResource.Containers = make(map[string]driver.EndpointResource)
+		netResource.Containers = make(map[string]EndpointResource)
 		for container, endPoint := range nr.Containers {
-			netResource.Containers[container] = driver.EndpointResource{
+			netResource.Containers[container] = EndpointResource{
 				Name:       endPoint.Name,
 				EndpointID: endPoint.EndpointID,
 			}
@@ -597,7 +597,7 @@ func (c *dockerClient) NetworkInspect(id string) (driver.NetworkInspect, error) 
 func (c *dockerClient) NetworkRemove(id string) error {
 	//	force := true
 	fmt.Println("Inside docker network remove for: ", id)
-	ctx, cancel := getTimeoutContext(&Driver)
+	ctx, cancel := getTimeoutContext(&DockerDriver)
 	defer cancel()
 
 	err := c.client.NetworkRemove(ctx, id)
@@ -610,7 +610,7 @@ func (c *dockerClient) NetworkRemove(id string) error {
 func (c *dockerClient) NetworkConnect(id string, container string, aliases []string) error {
 	fmt.Println("Inside docker network connect: ", id, container)
 
-	ctx, cancel := getTimeoutContext(&Driver)
+	ctx, cancel := getTimeoutContext(&DockerDriver)
 	defer cancel()
 
 	err := c.client.NetworkConnect(ctx, id, container, &dockernetworktypes.EndpointSettings{})
@@ -626,7 +626,7 @@ func (c *dockerClient) NetworkConnect(id string, container string, aliases []str
 func (c *dockerClient) NetworkDisconnect(id string, container string, force bool) error {
 	fmt.Println("Inside docker network disconnect: ", id, container)
 
-	ctx, cancel := getTimeoutContext(&Driver)
+	ctx, cancel := getTimeoutContext(&DockerDriver)
 	defer cancel()
 
 	err := c.client.NetworkDisconnect(ctx, id, container, force)
@@ -639,9 +639,9 @@ func (c *dockerClient) NetworkDisconnect(id string, container string, force bool
 	return nil
 }
 
-func (c *dockerClient) ContainerExec(id string, cmd []string) (driver.ExecResult, error) {
+func (c *dockerClient) ContainerExec(id string, cmd []string) (ExecResult, error) {
 	fmt.Println("Inside docker container exec")
-	ctx, cancel := getTimeoutContext(&Driver)
+	ctx, cancel := getTimeoutContext(&DockerDriver)
 	defer cancel()
 
 	execConfig := dockertypes.ExecConfig{
@@ -652,14 +652,14 @@ func (c *dockerClient) ContainerExec(id string, cmd []string) (driver.ExecResult
 
 	createResponse, err := c.client.ContainerExecCreate(ctx, id, execConfig)
 	if err != nil {
-		return driver.ExecResult{}, err
+		return ExecResult{}, err
 	}
 	execID := createResponse.ID
 
 	// run with stdout and stderr attached
 	attachResponse, err := c.client.ContainerExecAttach(ctx, execID, dockertypes.ExecStartCheck{})
 	if err != nil {
-		return driver.ExecResult{}, err
+		return ExecResult{}, err
 	}
 	defer attachResponse.Close()
 
@@ -674,26 +674,26 @@ func (c *dockerClient) ContainerExec(id string, cmd []string) (driver.ExecResult
 	select {
 	case err := <-outputDone:
 		if err != nil {
-			return driver.ExecResult{}, err
+			return ExecResult{}, err
 		}
 		break
 	}
 
 	inspectResponse, err := c.client.ContainerExecInspect(ctx, execID)
 	if err != nil {
-		return driver.ExecResult{}, err
+		return ExecResult{}, err
 	}
 
-	return driver.ExecResult{ExitCode: inspectResponse.ExitCode, OutBuffer: &outBuf, ErrBuffer: &errBuf}, nil
+	return ExecResult{ExitCode: inspectResponse.ExitCode, OutBuffer: &outBuf, ErrBuffer: &errBuf}, nil
 }
 
-func (c *dockerClient) Info() (driver.Info, error) {
+func (c *dockerClient) Info() (Info, error) {
 	fmt.Println("Inside docker info")
 
-	ctx, cancel := getTimeoutContext(&Driver)
+	ctx, cancel := getTimeoutContext(&DockerDriver)
 	defer cancel()
 
-	driverInfo := driver.Info{}
+	driverInfo := Info{}
 
 	info, err := c.client.Info(ctx)
 	if ctxErr := contextError(ctx); ctxErr != nil {

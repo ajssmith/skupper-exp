@@ -67,13 +67,14 @@ func getTlsConfig(verify bool, cert, key, ca string) (*tls.Config, error) {
 }
 
 func main() {
-	var cePlugin string
+	var ce string
 
 	siteId := os.Getenv("SKUPPER_SITE_ID")
-	if os.Getenv("SKUPPER_CE_PLUGIN") != "" {
-		cePlugin = os.Getenv("SKUPPER_CE_PLUGIN")
+	if os.Getenv("SKUPPER_CONTAINER_ENGINE") != "" {
+		ce = os.Getenv("SKUPPER_CONTAINER_ENGINE")
+		fmt.Printf("Container engine is: ", ce)
 	} else {
-		cePlugin = "podman"
+		ce = "docker"
 	}
 
 	stopCh := SetupSignalHandler()
@@ -83,7 +84,7 @@ func main() {
 		log.Fatal("Error getting new van client", err.Error())
 	}
 
-	err = cli.Init(".", cePlugin)
+	err = cli.Init(ce)
 	if err != nil {
 		log.Fatal("Error van client init", err.Error())
 	}

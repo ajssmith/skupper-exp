@@ -37,7 +37,6 @@ const (
 	SaslConfigPath
 	ServicesPath
 	SitesPath
-	PluginsPath
 )
 
 var skupperPaths = map[Path]string{
@@ -49,7 +48,6 @@ var skupperPaths = map[Path]string{
 	SaslConfigPath:   "sasl-config",
 	ServicesPath:     "services",
 	SitesPath:        "sites",
-	PluginsPath:      "plugins",
 }
 
 func GetSkupperPath(p Path) string {

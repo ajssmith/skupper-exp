@@ -28,20 +28,22 @@ type Driver interface {
 	ImageInspect(id string) (*ImageInspect, error)
 	ImagesList(options ImageListOptions) ([]ImageSummary, error)
 	ImagesPull(refStr string, options ImagePullOptions) ([]string, error)
+	ImageVersion(id string) (string, error)
 	ContainerCreate(options ContainerCreateOptions) (ContainerCreateResponse, error)
 	ContainerStart(id string) error
 	ContainerWait(id string, state string, timeout time.Duration, interval time.Duration) error
-	ContainerList(options ContainerListOptions) ([]Container, error)
-	ContainerInspect(id string) (*InspectContainerData, error)
+	ContainerList(options ContainerListOptions) ([]ContainerSummary, error)
+	ContainerInspect(id string) (*ContainerInspect, error)
 	ContainerRestart(id string) error
 	ContainerStop(id string) error
 	ContainerRemove(id string) error
 	ContainerExec(id string, cmd []string) (ExecResult, error)
 	NetworkCreate(name string, options NetworkCreateOptions) (NetworkCreateResponse, error)
-	NetworkInspect(id string) (NetworkResource, error)
+	NetworkInspect(id string) (NetworkInspect, error)
 	NetworkRemove(id string) error
 	NetworkConnect(id string, container string, aliases []string) error
 	NetworkDisconnect(id string, container string, force bool) error
+	Info() (Info, error)
 }
 
 func RecreateContainer(name string, dd Driver) error {
@@ -107,7 +109,6 @@ func RecreateContainer(name string, dd Driver) error {
 	return nil
 }
 
-// TODO: add Config
 type ImageInspect struct {
 	ID       string   `json:"Id"`
 	Created  int64    `json:"Created"`
@@ -125,17 +126,6 @@ type ImageListOptions struct {
 	All     bool
 }
 
-type ContainerListOptions struct {
-	Filters map[string][]string
-	All     bool
-}
-
-type NetworkListOptions struct {
-	Filters map[string][]string
-	All     bool
-}
-
-// TODO: podman Image has container config, where should this come from
 type ImageSummary struct {
 	ID          string            `json:"Id"`
 	Created     int64             `json:"Created"`
@@ -143,6 +133,11 @@ type ImageSummary struct {
 	RepoTags    []string          `json:",omitempty"`
 	RepoDigests []string          `json:",omitempty"`
 	Size        int64             `json:"Size"`
+}
+
+type ContainerListOptions struct {
+	Filters map[string][]string
+	All     bool
 }
 
 type HealthConfig struct {
@@ -186,7 +181,7 @@ type ContainerCreateResponse struct {
 	Warnings []string `json:"Warnings"`
 }
 
-type Container struct {
+type ContainerSummary struct {
 	ID      string `json:"Id"`
 	Names   []string
 	Image   string
@@ -198,27 +193,6 @@ type Container struct {
 	State   string
 	Status  string
 	Mounts  []MountPoint
-}
-
-// corresponds to containers on a network
-type EndpointResource struct {
-	Name       string
-	EndpointID string
-}
-type NetworkResource struct {
-	Name       string
-	NetworkID  string
-	Containers map[string]EndpointResource
-}
-
-type NetworkEndpointSetting struct {
-	Links       []string
-	Aliases     []string
-	NetworkID   string
-	EndpointID  string
-	Gateway     string
-	IPAddress   string
-	IPPrefixLen int
 }
 
 type ContainerNetworkConfig struct {
@@ -240,7 +214,7 @@ type ContainerConfig struct {
 
 // NOTE: ContainerJSONBase    for docker
 //       InspectContainerData for podman
-type InspectContainerData struct {
+type ContainerInspect struct {
 	// Base
 	ID              string          `json:"Id"`
 	Created         time.Time       `json:"Created"`
@@ -298,6 +272,27 @@ type ContainerState struct {
 	Paused  bool
 }
 
+// corresponds to containers on a network
+type EndpointResource struct {
+	Name       string
+	EndpointID string
+}
+
+type NetworkInspect struct {
+	Name       string
+	NetworkID  string
+	Containers map[string]EndpointResource
+}
+
+type NetworkEndpointSetting struct {
+	Links       []string
+	Aliases     []string
+	NetworkID   string
+	EndpointID  string
+	Gateway     string
+	IPAddress   string
+	IPPrefixLen int
+}
 type NetworkCreateOptions struct {
 	CheckDuplicate bool
 	Driver         string
@@ -308,6 +303,11 @@ type NetworkCreateOptions struct {
 type NetworkCreateResponse struct {
 	ID      string `json:"Id"`
 	Warning string
+}
+
+type NetworkListOptions struct {
+	Filters map[string][]string
+	All     bool
 }
 
 type ExecResult struct {
@@ -322,4 +322,15 @@ func (res *ExecResult) Stderr() string {
 
 func (res *ExecResult) Stdout() string {
 	return res.OutBuffer.String()
+}
+
+type Info struct {
+	ID              string
+	Name            string
+	KernelVersion   string
+	OperatingSystem string
+	OSVersion       string
+	OSType          string
+	Architecture    string
+	ServerVersion   string
 }

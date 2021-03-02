@@ -3,7 +3,6 @@ package client
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"runtime"
@@ -82,9 +81,8 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	van := &types.RouterSpec{}
 	//TODO: think througn van name, router name, secret names, etc.
 	if options.SkupperName == "" {
-		//		info, _ := cli.CeDriver.Info()
-		//		van.Name = info.Name
-		van.Name = "Woodrow"
+		info, _ := cli.CeDriver.Info()
+		van.Name = info.Name
 	} else {
 		van.Name = options.SkupperName
 	}
@@ -302,10 +300,11 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 		skupperHost = "host-gateway"
 	}
 	van.Controller.EnvVar = map[string]string{
-		"SKUPPER_SITE_ID":     siteId,
-		"SKUPPER_TMPDIR":      os.Getenv("SKUPPER_TMPDIR"),
-		"SKUPPER_PROXY_IMAGE": van.Controller.Image,
-		"SKUPPER_HOST":        skupperHost,
+		"SKUPPER_SITE_ID":          siteId,
+		"SKUPPER_TMPDIR":           os.Getenv("SKUPPER_TMPDIR"),
+		"SKUPPER_PROXY_IMAGE":      van.Controller.Image,
+		"SKUPPER_HOST":             skupperHost,
+		"SKUPPER_CONTAINER_ENGINE": options.ContainerEngineDriver,
 	}
 	if options.MapToHost {
 		van.Controller.EnvVar["SKUPPER_MAP_TO_HOST"] = "true"
@@ -329,7 +328,6 @@ func (cli *VanClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteId
 	van.Controller.Mounts = map[string]string{
 		types.GetSkupperPath(types.CertsPath) + "/" + "skupper": "/etc/messaging",
 		types.GetSkupperPath(types.ServicesPath):                "/etc/messaging/services",
-		types.GetSkupperPath(types.PluginsPath):                 "/etc/plugins",
 		"/var/run":                                              "/var/run",
 	}
 
@@ -364,11 +362,11 @@ func getControllerContainerCreateOptions(van *types.RouterSpec) *driver.Containe
 			Mounts:     mounts,
 			Privileged: true,
 		},
-		NetworkingConfig: &driver.ContainerNetworkingConfig{
-			EndpointsConfig: map[string]*driver.NetworkEndpointSetting{
-				types.TransportNetworkName: {},
-			},
-		},
+		//		NetworkingConfig: &driver.ContainerNetworkingConfig{
+		//			EndpointsConfig: map[string]*driver.NetworkEndpointSetting{
+		//				types.TransportNetworkName: {},
+		//			},
+		//		},
 	}
 
 	return cfg
@@ -401,11 +399,11 @@ func getTransportContainerCreateOptions(van *types.RouterSpec) *driver.Container
 			Mounts:     mounts,
 			Privileged: true,
 		},
-		NetworkingConfig: &driver.ContainerNetworkingConfig{
-			EndpointsConfig: map[string]*driver.NetworkEndpointSetting{
-				types.TransportNetworkName: {},
-			},
-		},
+		//		NetworkingConfig: &driver.ContainerNetworkingConfig{
+		//			EndpointsConfig: map[string]*driver.NetworkEndpointSetting{
+		//				types.TransportNetworkName: {},
+		//			},
+		//		},
 	}
 
 	return cfg
@@ -413,7 +411,7 @@ func getTransportContainerCreateOptions(van *types.RouterSpec) *driver.Container
 
 // RouterCreate instantiates a VAN Router (transport and controller)
 func (cli *VanClient) RouterCreate(options types.SiteConfigSpec) error {
-	clerr := cli.Init(options.PluginPath, options.ContainerEngineDriver)
+	clerr := cli.Init(options.ContainerEngineDriver)
 	if clerr != nil {
 		fmt.Println("client error: ", clerr.Error())
 	}
@@ -460,7 +458,6 @@ func (cli *VanClient) RouterCreate(options types.SiteConfigSpec) error {
 		return err
 	}
 
-	fmt.Printf("Router create options ce driver: %+v\n", cli.CeDriver)
 	_, err = cli.CeDriver.ImagesPull(van.Transport.Image, driver.ImagePullOptions{})
 	if err != nil {
 		return err
@@ -484,31 +481,6 @@ func (cli *VanClient) RouterCreate(options types.SiteConfigSpec) error {
 
 	// this one is needed by the controller
 	if err := os.Mkdir(types.GetSkupperPath(types.ServicesPath), 0755); err != nil {
-		return err
-	}
-
-	if err := os.Mkdir(types.GetSkupperPath(types.PluginsPath), 0755); err != nil {
-		return err
-	}
-
-	// copy plugin for controller
-	src := fmt.Sprintf("%s/%s.so", options.PluginPath, options.ContainerEngineDriver)
-	dest := fmt.Sprintf("%s/plugin.so", types.GetSkupperPath(types.PluginsPath))
-
-	source, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer source.Close()
-
-	destination, err := os.Create(dest)
-	if err != nil {
-		return err
-	}
-	defer destination.Close()
-
-	_, err = io.Copy(destination, source)
-	if err != nil {
 		return err
 	}
 
@@ -544,10 +516,10 @@ sasldb_path: /tmp/qdrouterd.sasldb
 	}
 
 	// create user network
-	_, err = cli.CeDriver.NetworkCreate(types.TransportNetworkName, driver.NetworkCreateOptions{})
-	if err != nil {
-		return err
-	}
+	//	_, err = cli.CeDriver.NetworkCreate(types.TransportNetworkName, driver.NetworkCreateOptions{})
+	//	if err != nil {
+	//		return err
+	//	}
 
 	transportOpts := getTransportContainerCreateOptions(van)
 	transportResp, err := cli.CeDriver.ContainerCreate(*transportOpts)
