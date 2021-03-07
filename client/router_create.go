@@ -362,11 +362,11 @@ func getControllerContainerCreateOptions(van *types.RouterSpec) *driver.Containe
 			Mounts:     mounts,
 			Privileged: true,
 		},
-		//		NetworkingConfig: &driver.ContainerNetworkingConfig{
-		//			EndpointsConfig: map[string]*driver.NetworkEndpointSetting{
-		//				types.TransportNetworkName: {},
-		//			},
-		//		},
+		NetworkingConfig: &driver.ContainerNetworkingConfig{
+			EndpointsConfig: map[string]*driver.NetworkEndpointSetting{
+				types.TransportNetworkName: {},
+			},
+		},
 	}
 
 	return cfg
@@ -399,11 +399,11 @@ func getTransportContainerCreateOptions(van *types.RouterSpec) *driver.Container
 			Mounts:     mounts,
 			Privileged: true,
 		},
-		//		NetworkingConfig: &driver.ContainerNetworkingConfig{
-		//			EndpointsConfig: map[string]*driver.NetworkEndpointSetting{
-		//				types.TransportNetworkName: {},
-		//			},
-		//		},
+		NetworkingConfig: &driver.ContainerNetworkingConfig{
+			EndpointsConfig: map[string]*driver.NetworkEndpointSetting{
+				types.TransportNetworkName: {},
+			},
+		},
 	}
 
 	return cfg
@@ -516,10 +516,10 @@ sasldb_path: /tmp/qdrouterd.sasldb
 	}
 
 	// create user network
-	//	_, err = cli.CeDriver.NetworkCreate(types.TransportNetworkName, driver.NetworkCreateOptions{})
-	//	if err != nil {
-	//		return err
-	//	}
+	_, err = cli.CeDriver.NetworkCreate(types.TransportNetworkName, driver.NetworkCreateOptions{})
+	if err != nil {
+		return err
+	}
 
 	transportOpts := getTransportContainerCreateOptions(van)
 	transportResp, err := cli.CeDriver.ContainerCreate(*transportOpts)

@@ -708,13 +708,19 @@ func NewCmdVersion(newClient cobraFunc) *cobra.Command {
 type cobraFunc func(cmd *cobra.Command, args []string)
 
 func newClient(cmd *cobra.Command, args []string) {
+	fmt.Println("Mode is: ", cliMode)
 	cli, _ = client.NewClient()
 }
 
+var cliMode string
 var rootCmd *cobra.Command
 var cli types.VanClientInterface
 
 func init() {
+
+	rootCmd = &cobra.Command{Use: "skupper-docker"}
+	rootCmd.PersistentFlags().StringVarP(&cliMode, "mode", "m", "container-engine", "Skupper mode one of: host, container-engine")
+	rootCmd.Version = version
 
 	cmdInit := NewCmdInit(newClient)
 	cmdDelete := NewCmdDelete(newClient)
@@ -737,8 +743,6 @@ func init() {
 	cmdService.AddCommand(cmdCreateService)
 	cmdService.AddCommand(cmdDeleteService)
 
-	rootCmd = &cobra.Command{Use: "skupper-docker"}
-	rootCmd.Version = version
 	rootCmd.AddCommand(cmdInit,
 		cmdDelete,
 		cmdConnectionToken,

@@ -2,27 +2,23 @@ go 1.13
 
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 // indirect
-	github.com/Microsoft/go-winio v0.4.14 // indirect
-	github.com/containerd/containerd v1.3.3 // indirect
+	github.com/ajssmith/ce-drivers v0.0.0-20210103191203-76cb8982cf7c // indirect
+	github.com/containers/podman/v2 v2.2.1
 	github.com/docker/distribution v2.7.1+incompatible // indirect
-	github.com/docker/docker v1.4.2-0.20200326184834-82e3c0c30336
+	github.com/docker/docker v17.12.0-ce-rc1.0.20201020191947-73dc6a680cdd+incompatible
 	github.com/docker/go-connections v0.4.0
 	github.com/docker/go-units v0.4.0 // indirect
-	github.com/fsnotify/fsnotify v1.4.7
-	github.com/google/uuid v1.1.1
+	github.com/fsnotify/fsnotify v1.4.9
+	github.com/google/uuid v1.1.2
 	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/interconnectedcloud/go-amqp v0.12.6-0.20200506124159-f51e540008b5
 	github.com/morikuni/aec v1.0.0 // indirect
-	github.com/opencontainers/go-digest v1.0.0-rc1 // indirect
-	github.com/opencontainers/image-spec v1.0.1 // indirect
-	github.com/sirupsen/logrus v1.5.0 // indirect
-	github.com/skupperproject/skupper v0.0.0-20201023150448-6cc66218c765
-	github.com/spf13/cobra v0.0.6
-	google.golang.org/genproto v0.0.0-20190819201941-24fa4b261c55 // indirect
-	google.golang.org/grpc v1.21.1 // indirect
+	github.com/opencontainers/runtime-spec v1.0.3-0.20200817204227-f9c09b4ea1df
+	github.com/skupperproject/skupper v0.0.0-20201230152546-bc753101fa58
+	github.com/spf13/cobra v1.1.1
 	gotest.tools v2.2.0+incompatible
 	gotest.tools/v3 v3.0.3 // indirect
-	k8s.io/apimachinery v0.17.0
+	k8s.io/apimachinery v0.19.4
 	k8s.io/client-go v0.17.0
 )
 
