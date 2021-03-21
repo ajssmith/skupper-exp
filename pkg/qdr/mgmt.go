@@ -17,6 +17,7 @@ package qdr
 import (
 	"encoding/json"
 	"fmt"
+	"os/exec"
 
 	"github.com/ajssmith/skupper-exp/api/types"
 	"github.com/ajssmith/skupper-exp/driver"
@@ -52,9 +53,9 @@ func getQuery(typename string) []string {
 	}
 }
 
-func GetConnectedSites(dd driver.Driver) (types.TransportConnectedSites, error) {
+func GetConnectedSites(host bool, dd driver.Driver) (types.TransportConnectedSites, error) {
 	result := types.TransportConnectedSites{}
-	nodes, err := GetNodes(dd)
+	nodes, err := GetNodes(host, dd)
 	if err == nil {
 		for _, n := range nodes {
 			if n.NextHop == "" {
@@ -69,23 +70,31 @@ func GetConnectedSites(dd driver.Driver) (types.TransportConnectedSites, error) 
 	return result, err
 }
 
-func GetNodes(dd driver.Driver) ([]RouterNode, error) {
+func GetNodes(host bool, dd driver.Driver) ([]RouterNode, error) {
 	command := getQuery("node")
 	results := []RouterNode{}
+	var err error
+	var out []byte
 
-	current, err := dd.ContainerInspect("skupper-router")
-	if err != nil {
-		return results, fmt.Errorf("Error retrieving skupper router contairne: %w", err)
+	if !host {
+		current, err := dd.ContainerInspect("skupper-router")
+		if err != nil {
+			return results, fmt.Errorf("Error retrieving skupper router contairne: %w", err)
+		}
+		execResult, err := dd.ContainerExec(current.ID, command)
+		out = execResult.OutBuffer.Bytes()
+	} else {
+		cmd := exec.Command(command[0], command[1:]...)
+		out, err = cmd.CombinedOutput()
 	}
-	execResult, err := dd.ContainerExec(current.ID, command)
 
 	if err != nil {
 		return nil, err
 	} else {
 		results := []RouterNode{}
-		err = json.Unmarshal(execResult.OutBuffer.Bytes(), &results)
+		err = json.Unmarshal(out, &results)
 		if err != nil {
-			fmt.Println("Failed to parse JSON: ", err.Error(), execResult.OutBuffer.String())
+			fmt.Println("Failed to parse JSON: ", err.Error(), string(out))
 			return nil, err
 		} else {
 			return results, nil
@@ -102,22 +111,30 @@ func GetInterRouterOrEdgeConnection(host string, connections []Connection) *Conn
 	return nil
 }
 
-func GetConnections(dd driver.Driver) ([]Connection, error) {
+func GetConnections(host bool, dd driver.Driver) ([]Connection, error) {
 	command := getQuery("connection")
 	results := []Connection{}
+	var err error
+	var out []byte
 
-	current, err := dd.ContainerInspect("skupper-router")
-	if err != nil {
-		return results, fmt.Errorf("Error retrieving skupper router contairne: %w", err)
+	if !host {
+    	current, err := dd.ContainerInspect("skupper-router")
+	    if err != nil {
+		    return results, fmt.Errorf("Error retrieving skupper router contairne: %w", err)
+	    }
+	    execResult, err := dd.ContainerExec(current.ID, command)
+		out = execResult.OutBuffer.Bytes()
+	} else {
+		cmd := exec.Command(command[0], command[1:]...)
+		out, err = cmd.CombinedOutput()
 	}
-	execResult, err := dd.ContainerExec(current.ID, command)
+
 	if err != nil {
 		return nil, err
 	} else {
-		results := []Connection{}
-		err = json.Unmarshal(execResult.OutBuffer.Bytes(), &results)
+		err = json.Unmarshal(out, &results)
 		if err != nil {
-			fmt.Println("Failed to parse JSON: ", err.Error(), execResult.OutBuffer.String())
+			fmt.Println("Failed to parse JSON: ", err.Error(), string(out))
 			return nil, err
 		} else {
 			return results, nil

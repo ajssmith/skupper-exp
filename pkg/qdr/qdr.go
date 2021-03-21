@@ -129,6 +129,16 @@ func (r *RouterConfig) AddConnSslProfile(s SslProfile) {
 	r.SslProfiles[s.Name] = s
 }
 
+func (r *RouterConfig) AddConnSslProfileToPath(path string, s SslProfile) {
+	dir := strings.TrimSuffix(s.Name, "-profile")
+	if s.CertFile == "" && s.CaCertFile == "" && s.PrivateKeyFile == "" {
+		s.CertFile = fmt.Sprintf("%s/connections/%s/tls.crt", path, dir)
+		s.PrivateKeyFile = fmt.Sprintf("%s/connections/%s/tls.key", path, dir)
+		s.CaCertFile = fmt.Sprintf("%s/connections/%s/ca.crt", path, dir)
+	}
+	r.SslProfiles[s.Name] = s
+}
+
 func (r *RouterConfig) RemoveConnSslProfile(name string) bool {
 	profileName := name + "-profile"
 	_, ok := r.SslProfiles[profileName]

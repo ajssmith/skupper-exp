@@ -4,6 +4,7 @@ require (
 	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 // indirect
 	github.com/ajssmith/ce-drivers v0.0.0-20210103191203-76cb8982cf7c // indirect
 	github.com/containers/podman/v2 v2.2.1
+	github.com/coreos/go-systemd v0.0.0-20190321100706-95778dfbb74e
 	github.com/docker/distribution v2.7.1+incompatible // indirect
 	github.com/docker/docker v17.12.0-ce-rc1.0.20201020191947-73dc6a680cdd+incompatible
 	github.com/docker/go-connections v0.4.0

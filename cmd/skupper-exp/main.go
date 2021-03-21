@@ -9,7 +9,8 @@ import (
 	"time"
 
 	"github.com/ajssmith/skupper-exp/api/types"
-	"github.com/ajssmith/skupper-exp/client"
+	"github.com/ajssmith/skupper-exp/container"
+	"github.com/ajssmith/skupper-exp/host"
 	"github.com/spf13/cobra"
 )
 
@@ -708,8 +709,13 @@ func NewCmdVersion(newClient cobraFunc) *cobra.Command {
 type cobraFunc func(cmd *cobra.Command, args []string)
 
 func newClient(cmd *cobra.Command, args []string) {
-	fmt.Println("Mode is: ", cliMode)
-	cli, _ = client.NewClient()
+	if cliMode == "container-engine" {
+		cli = &container.ContainerClient
+	} else if cliMode == "host" {
+		cli = &host.HostClient
+	} else {
+		fmt.Printf("Mode %s note recognized, must be one of host or container-engine \n", cliMode)
+	}
 }
 
 var cliMode string
