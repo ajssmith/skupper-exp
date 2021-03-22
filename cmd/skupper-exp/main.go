@@ -402,7 +402,6 @@ func NewCmdStatus(newClient cobraFunc) *cobra.Command {
 		PreRun: newClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			silenceCobra(cmd)
-			
 			vir, err := cli.RouterInspect()
 			if err == nil {
 				var modedesc string = " in interior mode"
