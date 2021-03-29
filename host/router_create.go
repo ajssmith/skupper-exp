@@ -9,7 +9,6 @@ import (
 	"os/exec"
 	"strings"
 
-	//"github.com/coreos/go-systemd/unit"
 	"github.com/skupperproject/skupper/pkg/certs"
 
 	"github.com/ajssmith/skupper-exp/api/types"
@@ -41,14 +40,14 @@ func generateCredentials(ca string, name string, subject string, hosts []string,
 	certData := certs.GenerateCertificateData(name, subject, strings.Join(hosts, ","), caData)
 
 	for k, v := range certData {
-		if err := ioutil.WriteFile(types.GetSkupperPath(types.CertsPath)+"/"+name+"/"+k, v, 0755); err != nil {
+		if err := ioutil.WriteFile(types.GetSkupperPath(types.CertsPath)+"/"+name+"/"+k, v, 0777); err != nil {
 			return fmt.Errorf("Failed to write certificate file: %w", err)
 		}
 	}
 
 	if includeConnectJson {
 		certData["connect.json"] = []byte(configs.ConnectJSON())
-		if err := ioutil.WriteFile(types.GetSkupperPath(types.CertsPath)+"/"+name+"/connect.json", []byte(configs.ConnectJSON()), 0755); err != nil {
+		if err := ioutil.WriteFile(types.GetSkupperPath(types.CertsPath)+"/"+name+"/connect.json", []byte(configs.ConnectJSON()), 0777); err != nil {
 			return fmt.Errorf("Failed to write connect file: %w", err)
 		}
 	}
@@ -61,12 +60,12 @@ func ensureCA(name string) (certs.CertificateData, error) {
 	// check if existing by looking at path/dir, if not create dir to persist
 	caData := certs.GenerateCACertificateData(name, name)
 
-	if err := os.Mkdir(types.GetSkupperPath(types.CertsPath)+"/"+name, 0755); err != nil {
+	if err := os.Mkdir(types.GetSkupperPath(types.CertsPath)+"/"+name, 0777); err != nil {
 		return nil, fmt.Errorf("Failed to create certificate directory: %w", err)
 	}
 
 	for k, v := range caData {
-		if err := ioutil.WriteFile(types.GetSkupperPath(types.CertsPath)+"/"+name+"/"+k, v, 0755); err != nil {
+		if err := ioutil.WriteFile(types.GetSkupperPath(types.CertsPath)+"/"+name+"/"+k, v, 0777); err != nil {
 			return nil, fmt.Errorf("Failed to write CA certificate file: %w", err)
 		}
 	}
@@ -298,81 +297,6 @@ func (cli *hostClient) GetRouterSpecFromOpts(options types.SiteConfigSpec, siteI
 	return van, nil
 }
 
-// func getControllerContainerCreateOptions(van *types.RouterSpec) *driver.ContainerCreateOptions {
-// 	mounts := []driver.MountPoint{}
-// 	for source, target := range van.Controller.Mounts {
-// 		mounts = append(mounts, driver.MountPoint{
-// 			Type:        driver.TypeBind,
-// 			Source:      source,
-// 			Destination: target,
-// 		})
-// 	}
-
-// 	cfg := &driver.ContainerCreateOptions{
-// 		Name: types.ControllerDeploymentName,
-// 		ContainerConfig: &driver.ContainerBaseConfig{
-// 			Hostname: types.ControllerDeploymentName,
-// 			Image:    van.Controller.Image,
-// 			Cmd:      []string{"/go/src/app/controller"},
-// 			Env:      van.Controller.EnvVar,
-// 			HealthCheck: &driver.HealthConfig{
-// 				Test:        []string{},
-// 				StartPeriod: (time.Duration(60) * time.Second),
-// 			},
-// 			Labels:       van.Controller.Labels,
-// 			ExposedPorts: van.Controller.Ports,
-// 		},
-// 		HostConfig: &driver.ContainerHostConfig{
-// 			Mounts:     mounts,
-// 			Privileged: true,
-// 		},
-// 		NetworkingConfig: &driver.ContainerNetworkingConfig{
-// 			EndpointsConfig: map[string]*driver.NetworkEndpointSetting{
-// 				types.TransportNetworkName: {},
-// 			},
-// 		},
-// 	}
-
-// 	return cfg
-// }
-
-// func getTransportContainerCreateOptions(van *types.RouterSpec) *driver.ContainerCreateOptions {
-// 	mounts := []driver.MountPoint{}
-// 	for source, target := range van.Transport.Mounts {
-// 		mounts = append(mounts, driver.MountPoint{
-// 			Type:        driver.TypeBind,
-// 			Source:      source,
-// 			Destination: target,
-// 		})
-// 	}
-
-// 	cfg := &driver.ContainerCreateOptions{
-// 		Name: types.TransportDeploymentName,
-// 		ContainerConfig: &driver.ContainerBaseConfig{
-// 			Hostname: types.TransportDeploymentName,
-// 			Image:    van.Transport.Image,
-// 			Env:      van.Transport.EnvVar,
-// 			HealthCheck: &driver.HealthConfig{
-// 				Test:        []string{"curl --fail -s http://localhost:9090/healthz || exit 1"},
-// 				StartPeriod: (time.Duration(60) * time.Second),
-// 			},
-// 			Labels:       van.Transport.Labels,
-// 			ExposedPorts: van.Transport.Ports,
-// 		},
-// 		HostConfig: &driver.ContainerHostConfig{
-// 			Mounts:     mounts,
-// 			Privileged: true,
-// 		},
-// 		NetworkingConfig: &driver.ContainerNetworkingConfig{
-// 			EndpointsConfig: map[string]*driver.NetworkEndpointSetting{
-// 				types.TransportNetworkName: {},
-// 			},
-// 		},
-// 	}
-
-// 	return cfg
-// }
-
 // RouterCreate instantiates a VAN Router (transport and controller)
 func (cli *hostClient) RouterCreate(options types.SiteConfigSpec) error {
 
@@ -401,10 +325,10 @@ func (cli *hostClient) RouterCreate(options types.SiteConfigSpec) error {
 	// setup host dirs
 	_ = os.RemoveAll(types.GetSkupperPath(types.HostPath))
 	// create host dirs TODO this should not be here
-	if err := os.MkdirAll(types.GetSkupperPath(types.HostPath), 0755); err != nil {
+	if err := os.MkdirAll(types.GetSkupperPath(types.HostPath), 0777); err != nil {
 		return err
 	}
-	if err := os.Mkdir(types.GetSkupperPath(types.SitesPath), 0755); err != nil {
+	if err := os.Mkdir(types.GetSkupperPath(types.SitesPath), 0777); err != nil {
 		return err
 	}
 
@@ -419,18 +343,18 @@ func (cli *hostClient) RouterCreate(options types.SiteConfigSpec) error {
 	}
 
 	for mnt := range van.Transport.Mounts {
-		if err := os.Mkdir(mnt, 0755); err != nil {
+		if err := os.Mkdir(mnt, 0777); err != nil {
 			return err
 		}
 	}
 	for _, v := range van.Transport.Volumes {
-		if err := os.Mkdir(types.GetSkupperPath(types.CertsPath)+"/"+v, 0755); err != nil {
+		if err := os.Mkdir(types.GetSkupperPath(types.CertsPath)+"/"+v, 0777); err != nil {
 			return err
 		}
 	}
 
 	// this one is needed by the controller
-	if err := os.Mkdir(types.GetSkupperPath(types.ServicesPath), 0755); err != nil {
+	if err := os.Mkdir(types.GetSkupperPath(types.ServicesPath), 0777); err != nil {
 		return err
 	}
 
@@ -439,12 +363,12 @@ func (cli *hostClient) RouterCreate(options types.SiteConfigSpec) error {
 	if err != nil {
 		return err
 	}
-	err = ioutil.WriteFile(types.GetSkupperPath(types.ServicesPath)+"/skupper-services", encoded, 0755)
+	err = ioutil.WriteFile(types.GetSkupperPath(types.ServicesPath)+"/skupper-services", encoded, 0777)
 	if err != nil {
 		return err
 	}
 
-	err = ioutil.WriteFile(types.GetSkupperPath(types.ConfigPath)+"/qdrouterd.json", []byte(van.RouterConfig), 0755)
+	err = ioutil.WriteFile(types.GetSkupperPath(types.ConfigPath)+"/qdrouterd.json", []byte(van.RouterConfig), 0777)
 	if err != nil {
 		return err
 	}
@@ -455,11 +379,11 @@ pwcheck_method: auxprop
 auxprop_plugin: sasldb
 sasldb_path: /tmp/qdrouterd.sasldb
 `
-		err := ioutil.WriteFile(types.GetSkupperPath(types.SaslConfigPath)+"/qdrouterd.conf", []byte(config), 0755)
+		err := ioutil.WriteFile(types.GetSkupperPath(types.SaslConfigPath)+"/qdrouterd.conf", []byte(config), 0777)
 		if err != nil {
 			return err
 		}
-		err = ioutil.WriteFile(types.GetSkupperPath(types.ConsoleUsersPath)+"/"+options.User, []byte(options.Password), 0755)
+		err = ioutil.WriteFile(types.GetSkupperPath(types.ConsoleUsersPath)+"/"+options.User, []byte(options.Password), 0777)
 		if err != nil {
 			return err
 		}
@@ -474,7 +398,8 @@ sasldb_path: /tmp/qdrouterd.sasldb
 	}
 
 	fmt.Println("")
-	cmd := exec.Command("dnf", "install", "-y", "qpid-dispatch-router")
+	//	cmd := exec.Command("dnf", "install", "-y", "qpid-dispatch-router")
+	cmd := exec.Command("dnf", "help")
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	err = cmd.Run()
@@ -482,7 +407,7 @@ sasldb_path: /tmp/qdrouterd.sasldb
 		return err
 	}
 
-	service := `
+	qdrService := `
 [Unit]
 Description=Qpid Dispatch router daemon
 Requires=network.target
@@ -492,18 +417,58 @@ After=network.target
 User=qdrouterd
 Group=qdrouterd
 Type=simple
-ExecStart=/usr/local/bin/qdrouterd -c /var/tmp/skupper/config/qdrouterd.json
+ExecStart=/usr/sbin/qdrouterd -c /var/tmp/skupper/config/qdrouterd.json
 
 [Install]
 WantedBy=multi-user.target
 `
 
-    err = ioutil.WriteFile("/etc/systemd/system/qdrouterd.service", []byte(service), 0755)
-    if err != nil {
-	    return err
-    }
+	err = ioutil.WriteFile("/etc/systemd/system/qdrouterd.service", []byte(qdrService), 0777)
+	if err != nil {
+		return err
+	}
+
+	controllerService := `
+[Unit]
+Description=Skupper Controller Service
+Requires=network.target
+After=network.target
+	
+[Service]
+User=skupper-controller
+Group=skupper-controller
+Type=simple
+ExecStart=/usr/local/bin/controller
+
+[Install]
+WantedBy=multi-user.target
+`
+
+	err = ioutil.WriteFile("/etc/systemd/system/skupper-controller.service", []byte(controllerService), 0777)
+	if err != nil {
+		return err
+	}
+
+	cmd = exec.Command("groupadd", "skupper-controller")
+	err = cmd.Run()
+	if err != nil {
+		return err
+	}
+
+	cmd = exec.Command("useradd", "-g", "skupper-controller", "-r", "skupper-controller")
+	err = cmd.Run()
+	if err != nil {
+		return err
+	}
 
 	cmd = exec.Command("systemctl", "daemon-reload")
+	err = cmd.Run()
+	if err != nil {
+		return err
+	}
+
+	// not sure why this is needed but for now
+	cmd = exec.Command("chmod", "-R", "0777", "/var/tmp/skupper/")
 	err = cmd.Run()
 	if err != nil {
 		return err
@@ -521,16 +486,17 @@ WantedBy=multi-user.target
 		return err
 	}
 
-	// 	controllerOpts := getControllerContainerCreateOptions(van)
-	// 	controllerResp, err := cli.CeDriver.ContainerCreate(*controllerOpts)
-	// 	if err != nil {
-	// 		return err
-	// 	}
+	cmd = exec.Command("systemctl", "start", "skupper-controller")
+	err = cmd.Run()
+	if err != nil {
+		return err
+	}
 
-	// 	err = cli.CeDriver.ContainerStart(controllerResp.ID)
-	// 	if err != nil {
-	// 		return fmt.Errorf("Could not start controller container: %w", err)
-	// 	}
+	cmd = exec.Command("systemctl", "enable", "skupper-controller")
+	err = cmd.Run()
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

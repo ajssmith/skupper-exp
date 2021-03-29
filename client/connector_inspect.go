@@ -57,7 +57,7 @@ func (cli *VanClient) ConnectorInspect(name string) (*types.ConnectorInspectResp
 		Role: string(role),
 	}
 
-	connections, err := qdr.GetConnections(cli.CeDriver)
+	connections, err := qdr.GetConnections(false, cli.CeDriver)
 
 	if err == nil {
 		connection := qdr.GetInterRouterOrEdgeConnection(vci.Connector.Host+":"+vci.Connector.Port, connections)

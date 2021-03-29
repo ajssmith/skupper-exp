@@ -91,13 +91,38 @@ func (cli *hostClient) RouterRemove() []error {
 	//		}
 	//	}
 
-	// removed qdrouterd
-	cmd := exec.Command("dnf", "remove", "-y", "qpid-dispatch-router")
+	// removed qdrouterd - should we stop it first?
+	cmd := exec.Command("dnf", "help")
+	//	cmd := exec.Command("dnf", "remove", "-y", "qpid-dispatch-router")
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	err = cmd.Run()
 	if err != nil {
 		results = append(results, fmt.Errorf("Failed to remove qpid-dispatch-router: %w", err))
+	}
+
+	cmd = exec.Command("systemctl", "stop", "qdrouterd")
+	err = cmd.Run()
+	if err != nil {
+		results = append(results, fmt.Errorf("Failed to daemon-reload systemctl: %w", err))
+	}
+
+	cmd = exec.Command("systemctl", "stop", "skupper-controller")
+	err = cmd.Run()
+	if err != nil {
+		results = append(results, fmt.Errorf("Failed to daemon-reload systemctl: %w", err))
+	}
+
+	cmd = exec.Command("systemctl", "disable", "qdrouterd")
+	err = cmd.Run()
+	if err != nil {
+		results = append(results, fmt.Errorf("Failed to daemon-reload systemctl: %w", err))
+	}
+
+	cmd = exec.Command("systemctl", "disable", "skupper-controller")
+	err = cmd.Run()
+	if err != nil {
+		results = append(results, fmt.Errorf("Failed to daemon-reload systemctl: %w", err))
 	}
 
 	// remove host files
@@ -110,6 +135,23 @@ func (cli *hostClient) RouterRemove() []error {
 	err = os.Remove("/etc/systemd/system/qdrouterd.service")
 	if err != nil {
 		results = append(results, fmt.Errorf("Failed to remove qdrouterd service file: %w", err))
+	}
+
+	err = os.Remove("/etc/systemd/system/skupper-controller.service")
+	if err != nil {
+		results = append(results, fmt.Errorf("Failed to remove skupper-controller service file: %w", err))
+	}
+
+	cmd = exec.Command("systemctl", "daemon-reload")
+	err = cmd.Run()
+	if err != nil {
+		results = append(results, fmt.Errorf("Failed to daemon-reload systemctl: %w", err))
+	}
+
+	cmd = exec.Command("userdel", "skupper-controller")
+	err = cmd.Run()
+	if err != nil {
+		results = append(results, fmt.Errorf("Failed to userdel: %w", err))
 	}
 
 	return results

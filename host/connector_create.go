@@ -133,6 +133,12 @@ func (cli *hostClient) ConnectorCreate(secretFile string, options types.Connecto
 		return "", fmt.Errorf("Failed to restart qdrouterd service: %w", err)
 	}
 
+	cmd = exec.Command("systemctl", "restart", "skupper-controller")
+	err = cmd.Run()
+	if err != nil {
+		return "", fmt.Errorf("Failed to restart qdrouterd service: %w", err)
+	}
+
 	//	err = driver.RecreateContainer("skupper-router", cli.CeDriver)
 	//	if err != nil {
 	//		return "", fmt.Errorf("Failed to re-start transport container: %w", err)

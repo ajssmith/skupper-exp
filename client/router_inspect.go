@@ -53,10 +53,10 @@ func (cli *VanClient) RouterInspect() (*types.RouterInspectResponse, error) {
 	}
 	vir.Status.Mode = string(routerConfig.Metadata.Mode)
 
-	connected, err := qdr.GetConnectedSites(cli.CeDriver)
+	connected, err := qdr.GetConnectedSites(false, cli.CeDriver)
 	for i := 0; i < 5 && err != nil; i++ {
 		time.Sleep(500 * time.Millisecond)
-		connected, err = qdr.GetConnectedSites(cli.CeDriver)
+		connected, err = qdr.GetConnectedSites(false, cli.CeDriver)
 	}
 	if err != nil {
 		return vir, err

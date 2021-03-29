@@ -9,6 +9,7 @@ build-cmd:
 
 build-controller:
 	go build -ldflags="-X main.version=${VERSION}"  -o controller cmd/service-controller/main.go cmd/service-controller/controller.go cmd/service-controller/service_sync.go cmd/service-controller/bridges.go
+	go build -ldflags="-X main.version=${VERSION}"  -o controller cmd/service-controller-host/main.go cmd/service-controller-host/controller.go cmd/service-controller-host/service_sync.go cmd/service-controller-host/bridges.go
 
 build-plugins: build-docker-plugin build-podman-plugin
 
